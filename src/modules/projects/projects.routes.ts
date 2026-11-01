@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { guardIdParam } from '../../middleware/param-guard.middleware.js';
 import { hasUnstorableText } from '../../shared/utils/storable.js';
 import { SlrClient } from '../slr-client/slr-client.js';
 import { validate } from '../../middleware/validation.middleware.js';
@@ -11,6 +12,7 @@ import { createProject, getOwnedProject, listProjects } from './projects.service
 
 const router = Router();
 router.use(requireAuth);
+router.param('projectId', guardIdParam('Project not found', 'PROJECT_NOT_FOUND'));
 
 const createSchema = z.object({
   body: z.object({

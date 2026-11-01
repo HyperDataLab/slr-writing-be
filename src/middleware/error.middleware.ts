@@ -35,6 +35,15 @@ export const errorHandler = (err: Error | AppError, req: Request, res: Response,
     return res.status(413).json({ success: false, error: { code: 'PAYLOAD_TOO_LARGE', message: 'The request body is too large', requestId: req.id } });
   }
 
+  // Other errors raised by Express itself for a request it cannot read, such as a malformed percent-escape in the URL
+  // (`%ZZ`, status 400). These are the client's mistake, so answer 4xx with a generic message and keep the details out.
+  if (typeof bodyError.status === 'number' && bodyError.status >= 400 && bodyError.status < 500) {
+    return res.status(bodyError.status).json({
+      success: false,
+      error: { code: bodyError.status === 400 ? 'BAD_REQUEST' : 'CLIENT_ERROR', message: 'The request could not be read', requestId: req.id },
+    });
+  }
+
   const isDev = env.NODE_ENV === 'development';
   return res.status(500).json({
     success: false,

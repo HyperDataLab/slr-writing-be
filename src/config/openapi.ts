@@ -61,6 +61,26 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Snapshots' }, '404': { description: 'PROJECT_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/methods': {
+      post: {
+        tags: ['Manuscript'], summary: 'Write the Methods section from the snapshot (fixed template, no LLM)',
+        description: 'Deterministic: the same snapshot gives the same text. 201 for a new version, 200 when the text is byte-identical to the latest version (nothing is stored). Every number in the text comes from a fact of the snapshot, and what the snapshot lacks is stated as not reported. The response holds the markdown, the facts with their source paths, and the warnings.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Unchanged, the latest version is returned' }, '201': { description: 'New version' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' }, '422': { description: 'METHODS_INPUT_MISSING: the snapshot has no A10' }, '500': { description: 'METHODS_UNGROUNDED_NUMBER: the text held a number that is not in the snapshot (a programming error; nothing is stored)' } },
+      },
+      get: {
+        tags: ['Manuscript'], summary: 'Latest version of Methods with the list of versions',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Latest version and a list of versions without their text' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or METHODS_NOT_GENERATED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/methods/revisions/{version}': {
+      get: {
+        tags: ['Manuscript'], summary: 'One stored version of Methods',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
+        responses: { '200': { description: 'The version' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'METHODS_REVISION_NOT_FOUND or the project or snapshot was not found' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {
       get: {
         tags: ['Snapshots'], summary: 'Get a snapshot with readiness issues, row counts and artifact statuses',
