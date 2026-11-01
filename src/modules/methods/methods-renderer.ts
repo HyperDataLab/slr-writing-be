@@ -1,3 +1,4 @@
+import { toVisibleLine } from './invisible-text.js';
 import type { Fact, FactItem, MethodsDraft } from './methods.types.js';
 
 /**
@@ -6,9 +7,21 @@ import type { Fact, FactItem, MethodsDraft } from './methods.types.js';
  * never filled in. A model that writes prose later replaces this file and must pass the same grounding check.
  */
 
-// Text from slr-be is written by people. Keep it on one line and stop Markdown or HTML in it from taking effect.
-const clean = (value: string): string =>
-  value.replace(/\s+/g, ' ').trim().replace(/[\\`*_[\]]/g, (char) => `\\${char}`).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Text from slr-be is written by people. Keep it on one line and stop Markdown or HTML in it from taking effect:
+// - control and zero-width characters are removed, whitespace is collapsed to single spaces;
+// - '&' is escaped first, so an entity such as '&#49;' stays literal text instead of becoming a character;
+// - inline markers are escaped, and so is a marker that would start a block (heading, quote, list, rule, fence, table).
+const clean = (value: string): string => {
+  const flat = toVisibleLine(value).trim();
+  const inline = flat
+    .replace(/&/g, '&amp;')
+    .replace(/[\\`*_[\]~]/g, (char) => `\\${char}`)
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return inline
+    .replace(/^([#+\-=|])/, '\\$1')
+    .replace(/^(\d+)([.)])/, '$1\\$2');
+};
 
 const joinList = (parts: string[]): string =>
   parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;

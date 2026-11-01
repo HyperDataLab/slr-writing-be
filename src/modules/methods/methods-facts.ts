@@ -1,3 +1,4 @@
+import { showsNothing } from './invisible-text.js';
 import type { Fact, FactItem, MethodsInput } from './methods.types.js';
 
 type Json = Record<string, unknown>;
@@ -5,8 +6,15 @@ type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
 const asRecord = (value: unknown): Json => (isRecord(value) ? value : {});
 const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
-const text = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined);
+// A safe integer, so a huge value never reaches the text in exponent notation (1e+21).
+const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+
+// Text that shows nothing (only spaces, control or zero-width characters) is not text.
+const text = (value: unknown): string | undefined =>
+  typeof value === 'string' && !showsNothing(value) ? value.trim() : undefined;
+
+// A publication year label must be exactly four digits, never a number in disguise such as '0x7E5', '1e3' or [2021].
+const YEAR_LABEL = /^[1-9]\d{3}$/;
 
 const explicit = (key: string, label: string, value: Fact['value'], source: string, derivation?: string): Fact => ({
   key, label, status: 'explicit', value, source, ...(derivation ? { derivation } : {}),
@@ -80,12 +88,15 @@ export function extractMethodsFacts(input: MethodsInput): Fact[] {
   facts.push(countFact('prisma.assessed', 'Reports assessed for eligibility', flow.reportsAssessedForEligibility, `${prismaPath}.reportsAssessedForEligibility`));
 
   // Reasons for excluding reports after full-text assessment: a list with counts, empty when nothing was excluded.
-  const excludedReports = asArray(flow.reportsExcluded).flatMap((entry) => {
+  // Explicit only when every entry is well formed. One broken entry means the list cannot be trusted, and a list with
+  // dropped entries must never be read as "nothing was excluded".
+  const excludedEntries = asArray(flow.reportsExcluded).map((entry) => {
     const record = asRecord(entry);
     const reason = text(record.reason);
-    return reason && isCount(record.count) ? [{ text: reason, count: record.count }] : [];
+    return reason && isCount(record.count) ? { text: reason, count: record.count } : undefined;
   });
-  facts.push(Array.isArray(flow.reportsExcluded)
+  const excludedReports = excludedEntries.filter((entry): entry is { text: string; count: number } => entry !== undefined);
+  facts.push(Array.isArray(flow.reportsExcluded) && excludedReports.length === excludedEntries.length
     ? explicit('prisma.excludedFullText', 'Reports excluded after full-text assessment, with reasons', excludedReports, `${prismaPath}.reportsExcluded`)
     : missing('prisma.excludedFullText', 'Reports excluded after full-text assessment, with reasons', `${prismaPath}.reportsExcluded`));
 
@@ -94,15 +105,22 @@ export function extractMethodsFacts(input: MethodsInput): Fact[] {
 
   // Characteristics of the studies stored in the snapshot.
   facts.push(explicit('studies.included', 'Studies in the review corpus', input.studyCount, 'snapshot.studies'));
-  const years = asArray(asRecord(input.a2?.distributions).by_year)
-    .map((entry) => Number(asRecord(entry).label))
-    .filter((year) => Number.isInteger(year) && year > 0);
-  facts.push(years.length > 0
-    ? explicit('studies.yearRange', 'Publication years of the included studies', `${Math.min(...years)}–${Math.max(...years)}`, 'A2.distributions.by_year', 'minimum and maximum of the year labels')
+  // Only years that really have studies count, and a plain loop: spreading a long list into Math.min overflows the stack.
+  let firstYear = Infinity;
+  let lastYear = -Infinity;
+  for (const entry of asArray(asRecord(input.a2?.distributions).by_year)) {
+    const record = asRecord(entry);
+    if (typeof record.label !== 'string' || !YEAR_LABEL.test(record.label) || !isCount(record.study_count) || record.study_count === 0) continue;
+    const year = Number(record.label);
+    if (year < firstYear) firstYear = year;
+    if (year > lastYear) lastYear = year;
+  }
+  facts.push(Number.isFinite(firstYear)
+    ? explicit('studies.yearRange', 'Publication years of the included studies', `${firstYear}–${lastYear}`, 'A2.distributions.by_year', 'minimum and maximum of the year labels that have studies')
     : missing('studies.yearRange', 'Publication years of the included studies', 'A2.distributions.by_year'));
 
   // Data extraction and quality assessment, counted from the studies A10 selected.
-  const selected = asArray(input.a10?.selected_studies).map(asRecord);
+  const selected = asArray(input.a10?.selected_studies).filter(isRecord);
   if (selected.length > 0) {
     facts.push(explicit('extraction.total', 'Studies selected for data extraction', selected.length, 'A10.selected_studies'));
     facts.push(explicit('extraction.completed', 'Studies with completed data extraction',

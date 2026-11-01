@@ -90,10 +90,24 @@ describe('extractMethodsFacts on degenerate input', () => {
     expect(fact(extractMethodsFacts(input), 'search.sources').value).toEqual([{ id: 's1', text: 'Scopus' }, { text: 's2' }, { text: 'IEEE Xplore' }]);
   });
 
-  it('keeps exclusion reasons with their counts and ignores malformed ones', () => {
+  it('keeps exclusion reasons with their counts', () => {
     const input = realInput();
-    (input.prismaExport as any).flow.reportsExcluded = [{ reason: 'Wrong population', count: 3 }, { reason: 'x', count: -1 }, { count: 2 }, null];
-    expect(fact(extractMethodsFacts(input), 'prisma.excludedFullText').value).toEqual([{ text: 'Wrong population', count: 3 }]);
+    (input.prismaExport as any).flow.reportsExcluded = [{ reason: 'Wrong population', count: 3 }, { reason: 'No full text', count: 1 }];
+    expect(fact(extractMethodsFacts(input), 'prisma.excludedFullText').value).toEqual([{ text: 'Wrong population', count: 3 }, { text: 'No full text', count: 1 }]);
+  });
+
+  it('treats the whole exclusion list as missing when any entry is malformed, never as "nothing was excluded"', () => {
+    for (const bad of [{ reason: 'x', count: -1 }, { count: 2 }, null, { reason: 'Not empirical' }, { reason: 'Not empirical', count: '2' }, { reason: '  ', count: 1 }]) {
+      const input = realInput();
+      (input.prismaExport as any).flow.reportsExcluded = [{ reason: 'Wrong population', count: 3 }, bad];
+      const { facts, markdown } = render(input);
+      expect(fact(facts, 'prisma.excludedFullText').status, JSON.stringify(bad)).toBe('missing');
+      expect(markdown).not.toContain('No reports were excluded');
+    }
+  });
+
+  it('says that no reports were excluded only when the list is really empty', () => {
+    expect(render(realInput()).markdown).toContain('No reports were excluded after full-text assessment with a recorded reason.');
   });
 
   it('counts quality assessment from the study statuses', () => {

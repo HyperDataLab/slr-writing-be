@@ -37,8 +37,10 @@ function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 
-const hashOf = (markdown: string, facts: Fact[]): string =>
-  `sha256:${createHash('sha256').update(stable({ markdown, facts, generator: METHODS_GENERATOR })).digest('hex')}`;
+// The hash is of the text and the generator only. A change that leaves the text byte-identical (for example only the
+// id of a search source) is not a new version; the facts stored with a version are those of the run that wrote its text.
+const hashOf = (markdown: string): string =>
+  `sha256:${createHash('sha256').update(stable({ markdown, generator: METHODS_GENERATOR })).digest('hex')}`;
 
 async function loadSnapshot(projectId: string, snapshotId: string) {
   const snapshot = await prisma.reviewSnapshot.findFirst({
@@ -92,12 +94,17 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
   }
 
   const warnings = warningsFor(facts, snapshot.issues);
-  const contentHash = hashOf(draft.markdown, facts);
+  const contentHash = hashOf(draft.markdown);
 
-  const latestOf = (sectionId: string) => prisma.sectionRevision.findFirst({ where: { sectionId }, orderBy: { version: 'desc' } });
-
-  try {
+  // Two requests can race to create the same manuscript, section or version (unique keys). The loser runs again: it then
+  // sees the winner's version and either finds the same text (no new version) or writes the next version itself.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
     return await prisma.$transaction(async (tx) => {
+      // One writer at a time per snapshot: the others wait here, then see the winner's version instead of racing it.
+      // The lock is released when the transaction ends. Without it, many requests at once keep colliding on the
+      // unique keys and some give up.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`methods:${snapshot.id}`}))`;
       const manuscript = await tx.manuscript.upsert({
         where: { snapshotId: snapshot.id },
         create: { projectId: params.projectId, snapshotId: snapshot.id, createdBy: params.actor },
@@ -128,14 +135,10 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
       });
       return { revision, created: true };
     }, { timeout: 30_000 });
-  } catch (error) {
-    // Two requests can race to create the same manuscript, section or version; the loser reads what the winner stored.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      const section = await prisma.manuscriptSection.findFirst({ where: { manuscript: { snapshotId: snapshot.id }, sectionKey: METHODS_SECTION } });
-      const latest = section ? await latestOf(section.id) : null;
-      if (latest) return { revision: latest, created: false };
+    } catch (error) {
+      const raced = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+      if (!raced || attempt >= 5) throw error;
     }
-    throw error;
   }
 }
 
