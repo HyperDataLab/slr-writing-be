@@ -1,8 +1,10 @@
 import { Router, type Request } from 'express';
 import type { AuthenticatedRequest } from '../../shared/types/common.types.js';
 import { env } from '../../config/env.js';
+import { guardIdParam } from '../../middleware/param-guard.middleware.js';
 import { createUserRateLimiter } from '../../middleware/rate-limit.middleware.js';
 import { BadRequestError, ForbiddenError } from '../../shared/errors/app-error.js';
+import methodsRoutes from '../methods/methods.routes.js';
 import { getOwnedProject } from '../projects/projects.service.js';
 import { SlrClient, isValidRunId } from '../slr-client/slr-client.js';
 import { importSnapshot, validateImport } from './snapshot-import.service.js';
@@ -10,6 +12,7 @@ import { getSnapshot, listSnapshots } from './snapshots.service.js';
 
 /** Mounted at `/projects/:projectId/snapshots`; the parent router already requires authentication. */
 const router = Router({ mergeParams: true });
+router.param('snapshotId', guardIdParam('Snapshot not found', 'SNAPSHOT_NOT_FOUND'));
 
 // Express cannot infer params that come from the parent router's path, so name them here.
 type Params = { projectId: string; snapshotId: string };
@@ -73,5 +76,8 @@ router.get('/:snapshotId', async (req: Request<Params>, res, next) => {
     return res.json({ success: true, data: await getSnapshot(req.params.projectId, req.params.snapshotId) });
   } catch (error) { return next(error); }
 });
+
+// Sections of the manuscript written from one snapshot.
+router.use('/:snapshotId/manuscript/methods', methodsRoutes);
 
 export default router;

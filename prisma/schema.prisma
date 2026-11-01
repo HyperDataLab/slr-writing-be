@@ -77,6 +77,7 @@ model Project {
   createdAt    DateTime          @default(now())
   snapshots    ReviewSnapshot[]
   provenance   ProvenanceEvent[]
+  manuscripts  Manuscript[]
 
   @@unique([ownerId, slrProjectId])
 }
@@ -109,6 +110,7 @@ model ReviewSnapshot {
   claims            Claim[]
   artifacts         SnapshotArtifact[]
   supplements       SnapshotSupplement[]
+  manuscripts       Manuscript[]
   provenance        ProvenanceEvent[]
 
   // Same run and corpus but different content (for example a changed PRISMA export), or a different source (fetched vs posted by hand), is a different snapshot.
@@ -287,6 +289,52 @@ model SnapshotSupplement {
   payload       Json
 
   @@unique([snapshotId, kind])
+}
+
+/// Bản thảo viết từ đúng một snapshot. Mỗi snapshot có tối đa một bản thảo.
+model Manuscript {
+  id         String              @id @default(uuid())
+  projectId  String
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  snapshotId String
+  snapshot   ReviewSnapshot      @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  createdBy  String
+  createdAt  DateTime            @default(now())
+  sections   ManuscriptSection[]
+
+  @@unique([snapshotId])
+}
+
+/// Một mục của bản thảo ('methods', sau này 'results', 'discussion'...).
+model ManuscriptSection {
+  id           String            @id @default(uuid())
+  manuscriptId String
+  manuscript   Manuscript        @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  sectionKey   String
+  createdAt    DateTime          @default(now())
+  revisions    SectionRevision[]
+
+  @@unique([manuscriptId, sectionKey])
+}
+
+/// Một phiên bản của mục. Chỉ ghi thêm: trigger trong migration chặn UPDATE và DELETE. Sửa nội dung = phiên bản mới.
+model SectionRevision {
+  id          String            @id @default(uuid())
+  sectionId   String
+  section     ManuscriptSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  version     Int
+  markdown    String
+  /// Các dữ kiện (kèm khoá nguồn) mà văn bản được viết từ đó
+  facts       Json
+  /// Cảnh báo kèm theo (snapshot hoặc dữ kiện thiếu)
+  warnings    Json
+  /// Bộ sinh văn bản, ví dụ 'methods-template@1'
+  generator   String
+  contentHash String
+  createdBy   String
+  createdAt   DateTime          @default(now())
+
+  @@unique([sectionId, version])
 }
 
 /// Nhật ký chỉ ghi thêm. Trigger trong migration chặn UPDATE và DELETE.
