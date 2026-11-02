@@ -15,6 +15,13 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Service is up' } },
       },
     },
+    '/api/llm/status': {
+      get: {
+        tags: ['LLM'], summary: 'Whether a language model is ready, and which',
+        description: 'Returns {configured, provider, model}. Never returns the key. There is no route that sends free text to the model: only the steps of the writing workflow call it.',
+        responses: { '200': { description: 'The status' }, '401': { description: 'Not authenticated' } },
+      },
+    },
     '/api/journal-profiles': {
       get: {
         tags: ['Journal profiles'], summary: 'List the journal profiles',

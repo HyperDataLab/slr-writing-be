@@ -17,6 +17,9 @@ export default defineConfig({
       LOG_LEVEL: 'silent',
       SLR_VERIFY_PROJECT_ACCESS: 'false',
       REQUIRE_SLR_OWNER_FOR_APPROVAL: 'false',
+      // A developer's own .env may hold a real key. Tests never use it: they put a stand-in model in place themselves.
+      LLM_PROVIDER: 'none',
+      GEMINI_API_KEY: '',
       FROM_SLR_RATE_LIMIT_PER_MINUTE: '10000',
     },
   },
