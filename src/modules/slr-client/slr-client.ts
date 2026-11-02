@@ -137,6 +137,29 @@ export class SlrClient {
     }
   }
 
+  /**
+   * The caller's role in an SLR project on slr-be: 'OWNER', 'LECTURER' or 'REVIEWER'. Anything else, including a role
+   * the answer does not name, gives null, and null never counts as OWNER. A project the caller cannot see is an error,
+   * the same one as for a missing project.
+   */
+  async getProjectRole(slrProjectId: string, ctx: SlrRequestContext = {}): Promise<'OWNER' | 'LECTURER' | 'REVIEWER' | null> {
+    this.assertSafeProjectId(slrProjectId);
+    let data: unknown;
+    try {
+      data = await this.get(`/projects/${encodeURIComponent(slrProjectId)}`, ctx);
+    } catch (error) {
+      if (error instanceof AppError && (error.code === 'SLR_FORBIDDEN' || error.code === 'SLR_NOT_FOUND')) {
+        throw new AppError('You do not have access to this SLR project', 403, 'SLR_PROJECT_ACCESS_DENIED');
+      }
+      throw error;
+    }
+    const answer = typeof data === 'object' && data !== null ? (data as { roleText?: unknown; id?: unknown }) : {};
+    // The answer has to be about the project that was asked for. A role in the answer for another project proves nothing.
+    if (answer.id !== slrProjectId) return null;
+    const roleText = answer.roleText;
+    return roleText === 'OWNER' || roleText === 'LECTURER' || roleText === 'REVIEWER' ? roleText : null;
+  }
+
   // encodeURIComponent leaves dots alone and URL parsing resolves "." and ".." segments, which would leave the project path.
   private assertSafeProjectId(slrProjectId: string): void {
     if (/^\.+$/.test(slrProjectId)) throw new AppError('The linked SLR project id is not valid', 400, 'INVALID_SLR_PROJECT_ID');

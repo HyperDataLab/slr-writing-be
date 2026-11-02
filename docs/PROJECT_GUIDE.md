@@ -156,6 +156,7 @@ flowchart TD
 | Kiểm chứng dữ liệu thật | (PR #12) Đã import thành công một run thật từ `slr-be`; fixture thật nằm ở `tests/fixtures/real/` |
 | Xác thực (M1) | Xác minh token Firebase, kiểm tra quyền khi liên kết project, tắt import tay ở production, rate limit `from-slr` (xem mục 11) |
 | Methods (M2) | Sinh phần Methods bằng mẫu cố định từ snapshot, 3 lớp: dữ kiện → câu chữ → kiểm tra số (xem M2 ở mục 15) |
+| Dàn ý + H1 (M5) | Sinh dàn ý bằng quy tắc từ profile và snapshot, người dùng sửa theo phiên bản, **OWNER của project SLR duyệt H1** (xem M5 ở mục 15) |
 | Journal Profile (M3) | Khung bài báo mặc định `generic-imrad`, luôn "chưa xác minh", schema chặt chống trình bày gợi ý như chính sách (xem M3 ở mục 15) |
 | Kiểm thử | Hàng trăm test qua (chạy `npm test` để biết con số hiện tại), gồm các bộ QA độc lập do sub-agent viết trong `tests/qa/` |
 
@@ -169,7 +170,7 @@ flowchart TD
 
 ### Chưa làm (thứ tự khuyến nghị ở [mục 15](#15-lộ-trình-các-module-tiếp-theo))
 
-Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H1–H3 · `LLMProvider` · outline + H1 · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
+Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H2 và H3 (H1 đã có) · `LLMProvider` · đề xuất dàn ý bằng LLM · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
 
 ---
 
@@ -215,6 +216,8 @@ slr-writing-be/
 │     ├─ slr-client/slr-client.ts          ★ gọi slr-be bằng token người dùng
 │     ├─ auth/                             firebase-verifier.ts, auth.setup.ts (M1)
 │     ├─ methods/                          ★ M2: methods.types / -facts / -renderer / -grounding / .service / .routes
+│     ├─ blueprint/                        ★ M5: blueprint.types / -generator / -validator / .service / .routes
+│     ├─ approvals/                        approvals.service.ts: kiểm tra OWNER, quyết định mới nhất (dùng chung H1/H2/H3)
 │     ├─ journal-profiles/                 ★ M3: journal-profile.schema / default-profile / .service / .routes (bộ sinh hợp lệ: shared/constants/generators.ts)
 │     └─ evidence | export | jobs | llm | verification/
 │                                          ← thư mục RỖNG, chỗ dành cho module sau
@@ -267,10 +270,12 @@ erDiagram
 | `SnapshotSupplement` | Dữ liệu `slr-be` **không đóng băng theo run**: `prisma_writing_export`, `rq_findings`. Snapshot giữ bản sao tại thời điểm import. |
 | `Manuscript` | Bản thảo viết từ đúng một snapshot (duy nhất theo `snapshotId`). |
 | `ManuscriptSection` | Một mục của bản thảo, theo `sectionKey` (hiện chỉ `methods`). |
+| `BlueprintRevision` | Một phiên bản dàn ý của bản thảo: `content` (mục, tiểu mục, coverage), `profileId`/`profileVersion`, `origin` (`generated` hoặc `edited`), `contentHash`. **Chỉ ghi thêm** (trigger chặn UPDATE, DELETE, TRUNCATE). |
+| `Approval` | Một quyết định duyệt (H1/H2/H3): `stage`, `targetKind`/`targetId`/`targetHash`, `decision` (`APPROVED`/`REJECTED`), `note`, `decidedBy`, `slrRole`, `seq` tăng dần. **Chỉ ghi thêm**. Trạng thái = quyết định có `seq` lớn nhất. |
 | `SectionRevision` | Một phiên bản của mục: `markdown`, `facts` (kèm đường dẫn nguồn), `warnings`, `generator`, `contentHash`. **Chỉ ghi thêm** (trigger DB chặn UPDATE/DELETE); đổi nội dung = phiên bản mới. |
 | `ProvenanceEvent` | Nhật ký chỉ ghi thêm (trigger DB chặn UPDATE/DELETE). Ghi `actor`, `activity`, `inputRefs`, `outputRefs`, `method`. |
 
-**Bảng sẽ cần thêm** (đề xuất, chưa có): `JournalProfile`, `ParagraphPlan`, `DraftParagraph`, `CitationRef`, `ReviewIssue`, `QualityGateResult`, `Approval` (H1/H2/H3), `ExportPackage`. Xem roadmap mục 4.
+**Bảng sẽ cần thêm** (đề xuất, chưa có): `ParagraphPlan`, `DraftParagraph`, `CitationRef`, `ReviewIssue`, `QualityGateResult`, `Approval` (H1/H2/H3), `ExportPackage`. Xem roadmap mục 4.
 
 ---
 
@@ -304,6 +309,12 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Số đếm, trạng thái artifact, supplements (kind/hash), issues | 200; 404 `SNAPSHOT_NOT_FOUND` |
 | POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Sinh phần Methods từ snapshot (mẫu cố định, không LLM). 201 phiên bản mới, 200 khi văn bản không đổi | 201 / 200; 422 `METHODS_INPUT_MISSING` |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Phiên bản mới nhất + danh sách các phiên bản (không kèm văn bản) | 200; 404 `METHODS_NOT_GENERATED` |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint` | Sinh dàn ý đầu tiên bằng quy tắc. 201 khi tạo, 200 khi đã có (không ghi đè). Body tuỳ chọn `{profileId}` | 201 / 200; 404 `JOURNAL_PROFILE_NOT_FOUND` |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint` | Phiên bản mới nhất + `issues` + `approvable` + `approval` + danh sách phiên bản | 200; 404 `BLUEPRINT_NOT_FOUND` |
+| PUT | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint` | Lưu bản sửa thành phiên bản kế tiếp. Body `{baseVersion, content}` | 201 / 200; 400 `INVALID_BLUEPRINT`; 409 `STALE_BLUEPRINT` |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint/revisions/:version` | Một phiên bản dàn ý kèm trạng thái duyệt của nó | 200; 400 `INVALID_VERSION`; 404 `BLUEPRINT_REVISION_NOT_FOUND` |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint/approve` | **H1**: duyệt phiên bản mới nhất. Body `{version, note?}`. Chỉ OWNER trên `slr-be` | 201 / 200; 400 `INVALID_REQUEST`; 401; 403 `APPROVAL_REQUIRES_OWNER` hoặc `SLR_PROJECT_ACCESS_DENIED`; 404 `BLUEPRINT_NOT_FOUND`; 409 `STALE_BLUEPRINT`; 422 `BLUEPRINT_NOT_APPROVABLE`; 502 / 504 khi `slr-be` lỗi hoặc chậm |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint/reject` | **H1**: từ chối (hoặc rút lại lần duyệt). Body `{version, note}`, ghi chú bắt buộc | 201 / 200; 400 `INVALID_REQUEST`; 401; 403; 404 `BLUEPRINT_NOT_FOUND`; 409 `STALE_BLUEPRINT`; 502 / 504 |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods/revisions/:version` | Một phiên bản đã lưu | 200; 400 `INVALID_VERSION`; 404 `METHODS_REVISION_NOT_FOUND` |
 
 Mọi route cần xác thực. Project/snapshot của người khác luôn trả **404** (không 403, để không dò được ID).
@@ -314,7 +325,7 @@ Mọi route cần xác thực. Project/snapshot của người khác luôn trả
 |---|---|
 | Xác thực | `UNAUTHORIZED` (401), `INVALID_TOKEN` (401) |
 | Đầu vào | `VALIDATION_ERROR`, `INVALID_JSON`, `PAYLOAD_TOO_LARGE` (413), `INVALID_RUN_ID`, `INVALID_SLR_PROJECT_ID`, `INVALID_IMPORT_INPUT`, `RUN_PROJECT_MISMATCH` (400) |
-| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429), `JOURNAL_PROFILE_NOT_FOUND` (404), `METHODS_INPUT_MISSING` (422), `METHODS_NOT_GENERATED` / `METHODS_REVISION_NOT_FOUND` (404), `INVALID_VERSION` (400), `METHODS_UNGROUNDED_NUMBER` (500, lỗi lập trình: văn bản có số không nằm trong dữ kiện) |
+| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429), `JOURNAL_PROFILE_NOT_FOUND` (404), `BLUEPRINT_NOT_FOUND` / `BLUEPRINT_REVISION_NOT_FOUND` (404), `INVALID_BLUEPRINT` / `INVALID_REQUEST` (400), `STALE_BLUEPRINT` (409), `BLUEPRINT_NOT_APPROVABLE` (422, `details.issues`), `BLUEPRINT_NOT_GENERATABLE` (422, snapshot có dữ liệu mà dàn ý không chứa được, ví dụ hơn 1000 theme), `APPROVAL_REQUIRES_OWNER` (403), `METHODS_INPUT_MISSING` (422), `METHODS_NOT_GENERATED` / `METHODS_REVISION_NOT_FOUND` (404), `INVALID_VERSION` (400), `METHODS_UNGROUNDED_NUMBER` (500, lỗi lập trình: văn bản có số không nằm trong dữ kiện) |
 | Upstream `slr-be` | `SLR_AUTH_REJECTED` (401), `SLR_FORBIDDEN` (403), `SLR_NOT_FOUND` (404), `SLR_UPSTREAM_ERROR`, `SLR_INVALID_RESPONSE`, `SLR_RESPONSE_TOO_LARGE`, `SLR_UNREACHABLE` (502), `SLR_TIMEOUT` (504) |
 | Khác | `INTERNAL_SERVER_ERROR` (500) |
 
@@ -410,7 +421,7 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 - `POST /snapshots/from-slr` giới hạn theo người dùng (`FROM_SLR_RATE_LIMIT_PER_MINUTE`, mặc định 20/phút) → 429 `RATE_LIMITED`. Đếm trong bộ nhớ của một tiến trình.
 - Tên và `slrProjectId` chứa NUL hoặc surrogate lẻ bị từ chối 400 thay vì lỗi 500 từ database.
 
-**Còn lại của xác thực:** chưa thử với token Firebase thật (cần FE đăng nhập); `FIREBASE_CHECK_REVOKED` cần thông tin service account; chưa có kiểm tra vai trò OWNER trên `slr-be` cho H1–H3 (hiện chỉ kiểm tra là thành viên khi liên kết).
+**Còn lại của xác thực:** chưa thử với token Firebase thật (cần FE đăng nhập); `FIREBASE_CHECK_REVOKED` cần thông tin service account. **Vai trò OWNER trên `slr-be` đã được kiểm tra cho H1** (`assertSlrOwner`, xem M5); H2 và H3 sẽ dùng lại đúng hàm đó khi làm. Khi liên kết project vẫn chỉ kiểm tra là thành viên.
 
 **Lỗ hổng đã biết (ưu tiên cao):**
 
@@ -452,6 +463,7 @@ npm run dev                 # http://localhost:5100  (Swagger: /api-docs)
 | `SLR_VERIFY_PROJECT_ACCESS` | `true` | Hỏi `slr-be` về quyền khi liên kết project |
 | `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` ngoài production, `false` ở production | Cho phép import tay |
 | `FROM_SLR_RATE_LIMIT_PER_MINUTE` | 20 | Số lần gọi `from-slr` mỗi người mỗi phút |
+| `REQUIRE_SLR_OWNER_FOR_APPROVAL` | `true` | Duyệt H1 (và H2, H3 sau này) hỏi `slr-be` vai trò của người gọi, chỉ OWNER qua. **Chỉ tắt cho test hoặc làm việc không có `slr-be`**; khi tắt, ai sở hữu project Writing cũng duyệt được |
 | `JSON_BODY_LIMIT` | `50mb` | Corpus lớn |
 
 ### Test
@@ -520,6 +532,8 @@ flowchart LR
 13. **Mỗi route mới** phải được thêm vào `src/config/openapi.ts` (viết tay) và có test OpenAPI.
 14. **Tham số id trong URL** (`:projectId`, `:snapshotId`...) đi qua `guardIdParam` (`src/middleware/param-guard.middleware.ts`): id chứa NUL hoặc dài quá 200 ký tự trả 404 như id không tồn tại, nếu không PostgreSQL báo lỗi và thành 500. Route mới có tham số id mới thì đăng ký `router.param(...)` tương tự. Đường dẫn có mã phần trăm hỏng (`%ZZ`) làm Express ném lỗi 400; `error.middleware.ts` trả 400 `BAD_REQUEST` chung chung thay vì 500.
 15. **Văn bản sinh ra phải tách dữ kiện khỏi câu chữ** (xem M2): dữ kiện có đường dẫn nguồn, câu chữ chỉ dùng dữ kiện, và bước kiểm tra số chặn mọi con số không có trong dữ kiện.
+16. **Không gọi `prisma` (kết nối khác) khi đang giữ một transaction.** Nhiều request cùng lúc mỗi cái giữ một kết nối và chờ kết nối thứ hai sẽ làm cạn bể (mặc định 10) và treo cả tiến trình. Tính trước, rồi mở transaction chỉ để ghi. Ghi vào bản thảo của một snapshot thì đi qua `manuscript.store.ts` (`exclusiveForSnapshot`, `takeSnapshotLock`, `ensureManuscript`).
+17. **Body có kích thước hoặc độ sâu do người dùng quyết định** phải qua `findStorableProblem(body, { maxDepth, maxNodes })` trước khi vào zod: nó đếm có giới hạn nên không tốn thời gian theo kích thước của kẻ gửi.
 
 ---
 
@@ -609,7 +623,36 @@ Khung bài báo mặc định, **không phải chính sách của một tạp ch
 - Interface `generateStructured({ promptTemplateId, input, schema }) → { output, modelInfo }` ở `src/modules/llm/`; `MockProvider` cho test; adapter Gemini (nhà cung cấp đề xuất vì `slr-be` đã có client, **chưa chốt**; khoá API chỉ trong biến môi trường).
 - Luôn đầu ra có cấu trúc (zod), lưu `provider/model/version`, `promptTemplateVersion`, tham số. Có timeout, retry có giới hạn, giới hạn token, ghi nhận chi phí.
 
-### M5 — Outline + H1
+### M5 — Dàn ý (Blueprint) + duyệt H1 — **đã code (bằng quy tắc, chưa dùng LLM), chờ merge**
+
+```mermaid
+flowchart TD
+    P[(Journal Profile<br/>generic-imrad v1)] --> G
+    S[(Snapshot<br/>themes + research questions)] --> G[POST /blueprint<br/>sinh bằng quy tắc cố định]
+    G --> V1[(BlueprintRevision v1<br/>origin = generated)]
+    V1 --> E{Người dùng sửa?}
+    E -- PUT baseVersion + content --> V2[(Version kế tiếp<br/>origin = edited)]
+    V2 --> E
+    V1 --> C{Validator:<br/>có lỗi chặn?}
+    V2 --> C
+    C -- có --> X[422 BLUEPRINT_NOT_APPROVABLE<br/>kèm danh sách lỗi]
+    C -- không --> R{slr-be: người gọi là OWNER?}
+    R -- không --> F[403 APPROVAL_REQUIRES_OWNER]
+    R -- có --> A[(Approval H1<br/>ghi seq, hash, vai trò)]
+    A --> N[Bước sau M6 chỉ chạy khi<br/>getApprovedBlueprint khác null]
+```
+
+- **Sinh dàn ý** (`blueprint-generator.ts`, hàm thuần, cùng đầu vào ra cùng kết quả): lấy mục, thứ tự và số từ gợi ý từ profile; Introduction có tiểu mục "Research questions"; **Results có một tiểu mục cho mỗi theme (claim)** của snapshot, gắn với câu hỏi nghiên cứu mà theme trả lời; Discussion có "Agreement and conflict between studies" và "Limitations"; **coverage**: mỗi câu hỏi nghiên cứu trỏ tới các tiểu mục Results trả lời nó. Câu hỏi không có theme nào trả lời được để trống, không đoán, nên lộ ra thành lỗi chặn cho tới khi người dùng xử lý. Tiêu đề theme được làm sạch cho vừa schema (một dòng, tối đa 300 ký tự, theme không có tiêu đề lấy tên từ id); id tiểu mục quá dài được thay bằng mã băm cố định. Dàn ý sinh ra luôn được kiểm tra bằng schema trước khi lưu: nếu snapshot có dữ liệu dàn ý không chứa được thì 422 `BLUEPRINT_NOT_GENERATABLE`, để không có dàn ý nào mà người dùng không lưu lại được.
+- **Lưu trữ:** `BlueprintRevision` (gắn với `Manuscript` của snapshot, **chỉ ghi thêm**, ghi `profileId` và `profileVersion` đã dùng) và `Approval` (**chỉ ghi thêm**, dùng chung cho H1/H2/H3 về sau: `stage`, `targetKind`, `targetId`, `targetHash`, `decision`, `note`, `decidedBy`, `slrRole`, `seq`). Trạng thái của một phiên bản là quyết định có `seq` lớn nhất về nó, không có quyết định thì là PENDING. Sửa dàn ý sau khi duyệt tạo phiên bản mới ở trạng thái PENDING; lần duyệt cũ vẫn gắn với phiên bản cũ.
+- **Sửa dàn ý** (`PUT`): người dùng gửi `baseVersion` và toàn bộ `content`. Nếu `baseVersion` không phải phiên bản mới nhất thì 409 `STALE_BLUEPRINT` (không ghi đè công việc của người khác). Nội dung giống hệt thì 200, không tạo phiên bản. Khoá lạ bị từ chối (`strict`), nên không có gì bị bỏ lặng lẽ; thông báo lỗi chỉ nói "unknown field", không lặp lại tên khoá người gọi gửi. Ký tự không lưu được (NUL, surrogate lẻ) và lồng quá 64 tầng bị từ chối 400 trước khi phân tích. Giới hạn kích thước: tối đa 5000 tiểu mục và 50.000 tham chiếu (theme, câu hỏi, tiểu mục trong coverage) cho cả dàn ý, và schema **đếm số giá trị trước** (tối đa 200.000) rồi mới kiểm từng trường, nên một body khổng lồ bị từ chối trong thời gian tỉ lệ với giới hạn chứ không phải với kích thước của nó (trước đó 1 triệu tham chiếu làm treo tiến trình 30 giây). **Bản nháp có lỗi vẫn lưu được**: lỗi chỉ chặn việc duyệt. Tên và thứ tự mục thuộc về profile, không sửa trong dàn ý.
+- **Điều kiện duyệt** (`blueprint-validator.ts`). Chặn: `PROFILE_MISMATCH`, `PROFILE_OUTDATED`, `PROFILE_UNKNOWN`, `SECTION_MISSING`, `SECTION_DUPLICATE`, `SECTION_UNKNOWN`, `REQUIRED_SECTION_EXCLUDED`, `WORD_BUDGET_INVALID`, `SUBSECTION_ID_DUPLICATE`, `UNKNOWN_CLAIM`, `UNKNOWN_RESEARCH_QUESTION`, `RESULTS_EMPTY`, `COVERAGE_MISSING`, `COVERAGE_DUPLICATE`, `COVERAGE_UNKNOWN_SUBSECTION`, `COVERAGE_WRONG_SECTION` (coverage chỉ được trỏ vào tiểu mục của Results, Discussion hoặc Conclusion; "phủ" bằng chính danh sách câu hỏi ở Introduction không tính), `COVERAGE_UNRESOLVED` (câu hỏi không có tiểu mục và cũng không có lý do N/A). Cảnh báo: `THEME_NOT_PLACED`, `EXCLUDED_SECTION_HAS_SUBSECTIONS`, `COVERAGE_RQ_MISMATCH` (tiểu mục được nhận là trả lời câu hỏi nhưng không liệt kê câu hỏi đó), `DUPLICATE_REFERENCE`, `NO_QUESTION_COVERED` (mọi câu hỏi đều chỉ có lý do N/A). Mỗi mã hiện tối đa 50 mục; phần còn lại gộp thành một cảnh báo `ISSUES_TRUNCATED` (việc chặn duyệt không phụ thuộc vào phần bị cắt).
+- **H1 chỉ dành cho OWNER trên `slr-be`:** `POST .../blueprint/approve` và `/reject` (`assertSlrOwner` trong `approvals.service.ts`) hỏi `slr-be` vai trò của người gọi bằng chính token của họ **ngay lúc quyết định**, trước khi ghi gì. Chỉ `roleText === 'OWNER'` mới qua; mọi giá trị khác, thiếu, sai kiểu, hay `slr-be` lỗi đều không qua (đóng khi lỗi). Vai trò được ghi vào `Approval.slrRole`. Cấu hình `REQUIRE_SLR_OWNER_FOR_APPROVAL` (mặc định bật) tắt được cho test và làm việc không có `slr-be`; khi tắt, `slrRole` ghi `NOT_CHECKED` để bản ghi không khẳng định một vai trò chưa kiểm tra. Chỉ phiên bản mới nhất mới quyết định được (409 nếu không). Quyết định giống lần trước (cùng chiều, và cùng ghi chú hoặc không có ghi chú) thì 200, không ghi thêm; cùng chiều nhưng ghi chú khác là một quyết định mới. Điều kiện duyệt được tính **trước** khi mở transaction và transaction kiểm tra lại phiên bản vẫn là phiên bản đã xét (nếu đã bị thay thì 409), nên lần duyệt không bao giờ rơi vào nội dung người duyệt chưa thấy. Từ chối bắt buộc có ghi chú. Từ chối một phiên bản đã duyệt là rút lại lần duyệt.
+- **Cho các bước sau:** `getApprovedBlueprint(manuscriptId)` trả phiên bản mới nhất **chỉ khi** quyết định mới nhất về nó là APPROVED; sửa sau khi duyệt hoặc chưa từng duyệt đều trả `null`. M6 phải gọi hàm này và dừng nếu `null`.
+- **Đồng thời:** mọi thao tác ghi vào bản thảo của một snapshot (Methods, dàn ý, duyệt) dùng chung `manuscript.store.ts`: xếp hàng **trong bộ nhớ trước** (`keyed-mutex.ts`, người chờ không giữ kết nối nào), rồi mới lấy khoá tư vấn PostgreSQL (cho nhiều bản sao server). Nhờ vậy 40 request cùng lúc không làm cạn bể kết nối (mặc định 10) và không tạo phiên bản hay quyết định trùng. Bản thảo (`Manuscript`) được tạo đúng một lần dù Methods và dàn ý tạo cùng lúc. Lần gọi lặp lại của "tạo dàn ý" và "sinh Methods" có đường đi nhanh không cần khoá.
+- **Quy tắc rút ra (bắt buộc cho module mới):** không bao giờ gọi `prisma` (kết nối khác) khi đang giữ một transaction, vì khi nhiều request cùng lúc mỗi cái giữ một kết nối và chờ kết nối thứ hai thì toàn bộ tiến trình bị treo. Tính trước, rồi mở transaction chỉ để ghi.
+- **Còn lại:** LLM chưa tham gia. Sau M4 có thể thêm bước "đề xuất dàn ý" do LLM sinh, vẫn phải qua `validateBlueprint` và H1. Chưa có giao diện (FE đã có kế hoạch màn hình Outline).
+
+*Thiết kế ban đầu của M5 (để đối chiếu):*
 - Từ snapshot + Journal Profile + (tuỳ chọn) contribution → `ManuscriptBlueprint` (section, mục tiêu, ngân sách từ, finding/claim dự kiến). Mỗi RQ phải có chỗ đến hoặc lý do N/A. Người dùng sửa/sắp xếp lại; **OWNER duyệt H1** → ghi `Approval` + `ProvenanceEvent`. Không được sang M6 khi chưa có H1.
 
 ### M6 — ParagraphPlan

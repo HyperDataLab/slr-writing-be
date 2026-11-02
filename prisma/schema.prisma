@@ -301,6 +301,8 @@ model Manuscript {
   createdBy  String
   createdAt  DateTime            @default(now())
   sections   ManuscriptSection[]
+  blueprints BlueprintRevision[]
+  approvals  Approval[]
 
   @@unique([snapshotId])
 }
@@ -335,6 +337,51 @@ model SectionRevision {
   createdAt   DateTime          @default(now())
 
   @@unique([sectionId, version])
+}
+
+/// Một phiên bản của dàn ý (blueprint) bản thảo. Chỉ ghi thêm: sửa dàn ý = phiên bản mới.
+model BlueprintRevision {
+  id             String     @id @default(uuid())
+  manuscriptId   String
+  manuscript     Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  version        Int
+  /// Profile khung bài báo đã dùng, để biết dàn ý này theo bản profile nào
+  profileId      String
+  profileVersion Int
+  content        Json
+  contentHash    String
+  /// 'generated' (sinh từ snapshot và profile) hoặc 'edited' (người dùng sửa)
+  origin         String
+  createdBy      String
+  createdAt      DateTime   @default(now())
+
+  @@unique([manuscriptId, version])
+}
+
+/// Quyết định duyệt của người dùng tại một điểm duyệt (H1 dàn ý, H2 nội dung, H3 bản cuối). Chỉ ghi thêm.
+/// Trạng thái hiện tại của một đối tượng là quyết định mới nhất về nó.
+model Approval {
+  id           String     @id @default(uuid())
+  /// Thứ tự ghi, tăng dần: quyết định mới nhất về một đối tượng là dòng có seq lớn nhất
+  seq          Int        @unique @default(autoincrement())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  /// 'H1', 'H2' hoặc 'H3'
+  stage        String
+  /// Loại đối tượng được duyệt, ví dụ 'blueprint_revision'
+  targetKind   String
+  targetId     String
+  /// Hash nội dung đối tượng lúc duyệt
+  targetHash   String
+  /// 'APPROVED' hoặc 'REJECTED'
+  decision     String
+  note         String?
+  decidedBy    String
+  /// Vai trò của người duyệt trong project SLR trên slr-be lúc duyệt ('NOT_CHECKED' nếu cấu hình tắt kiểm tra)
+  slrRole      String
+  decidedAt    DateTime   @default(now())
+
+  @@index([manuscriptId, stage, targetKind, targetId])
 }
 
 /// Nhật ký chỉ ghi thêm. Trigger trong migration chặn UPDATE và DELETE.
