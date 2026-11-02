@@ -64,12 +64,15 @@ Prefix `/api`. Chi tiết trong Swagger. Mọi route (trừ `/api/health`) cần
 
 | Method | Đường dẫn | Mục đích |
 |---|---|---|
+| GET | `/journal-profiles`, `/journal-profiles/:profileId` | Profile khung bài báo (hiện có `generic-imrad`, luôn ghi rõ chưa xác minh với tạp chí nào) |
 | POST, GET | `/projects` | Tạo, liệt kê dự án của người dùng |
 | GET | `/projects/:projectId` | Chi tiết một dự án (dự án của người khác trả 404) |
 | POST | `/projects/:projectId/snapshots/validate` | Kiểm tra một run của `slr-be` có đủ điều kiện viết không, không lưu gì |
 | POST | `/projects/:projectId/snapshots` | Import run thành snapshot. 201 mới, 200 đã import trước đó, 422 nếu có lỗi chặn |
 | GET | `/projects/:projectId/snapshots` | Danh sách snapshot |
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Chi tiết, số dòng dữ liệu, trạng thái artifact, danh sách cảnh báo |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Sinh phần Methods từ snapshot bằng mẫu cố định (201 phiên bản mới, 200 không đổi) |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Phiên bản Methods mới nhất và danh sách phiên bản |
 
 Body của `validate` và import là `{ run, corpus, artifacts }` lấy từ API của `slr-be` (xem `docs/slr-be-survey.md`).
 

@@ -149,12 +149,15 @@ flowchart TD
 |---|---|
 | Khung repo | Express 4 + TypeScript ESM, Swagger, pino, CI GitHub Actions (có Postgres), ruleset nhánh |
 | Tài liệu | README, spec cũ, khảo sát `slr-be`, MVP scope, ADR-001/005/007/011, roadmap |
-| Database | 13 model Prisma, 4 migration, trigger chặn UPDATE/DELETE trên `ProvenanceEvent` |
+| Database | 16 model Prisma, 7 migration. Trigger: `ProvenanceEvent` và `SectionRevision` chặn UPDATE, DELETE và TRUNCATE; `Manuscript` và `ManuscriptSection` chặn đổi khoá (dự án, snapshot, `sectionKey`) |
 | Snapshot import | Hợp đồng zod, kiểm tra sẵn sàng, lưu trong transaction, idempotent theo nội dung, hash toàn vẹn |
 | API | Project + snapshot (xem [mục 8](#8-api-hiện-có)), xác thực từ chối mặc định |
 | Client `slr-be` | Lấy run + corpus của run + A1/A2/A7/A10 + PRISMA export + RQ findings; chặn redirect, timeout, giới hạn kích thước |
 | Kiểm chứng dữ liệu thật | (PR #12) Đã import thành công một run thật từ `slr-be`; fixture thật nằm ở `tests/fixtures/real/` |
-| Kiểm thử | **352 test qua** (13 file), gồm 3 bộ QA độc lập do sub-agent viết trong `tests/qa/` |
+| Xác thực (M1) | Xác minh token Firebase, kiểm tra quyền khi liên kết project, tắt import tay ở production, rate limit `from-slr` (xem mục 11) |
+| Methods (M2) | Sinh phần Methods bằng mẫu cố định từ snapshot, 3 lớp: dữ kiện → câu chữ → kiểm tra số (xem M2 ở mục 15) |
+| Journal Profile (M3) | Khung bài báo mặc định `generic-imrad`, luôn "chưa xác minh", schema chặt chống trình bày gợi ý như chính sách (xem M3 ở mục 15) |
+| Kiểm thử | Hàng trăm test qua (chạy `npm test` để biết con số hiện tại), gồm các bộ QA độc lập do sub-agent viết trong `tests/qa/` |
 
 ### Trạng thái nhánh (lúc viết)
 
@@ -166,7 +169,7 @@ flowchart TD
 
 ### Chưa làm (thứ tự khuyến nghị ở [mục 15](#15-lộ-trình-các-module-tiếp-theo))
 
-Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H1–H3 · bộ sinh Methods/PRISMA · Journal Profile · `LLMProvider` · outline + H1 · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
+Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H1–H3 · `LLMProvider` · outline + H1 · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
 
 ---
 
@@ -210,7 +213,10 @@ slr-writing-be/
 │     │   ├─ snapshots.service.ts          liệt kê / xem (không trả payload lớn)
 │     │   └─ snapshots.routes.ts
 │     ├─ slr-client/slr-client.ts          ★ gọi slr-be bằng token người dùng
-│     └─ evidence | export | jobs | journal-profiles | llm | manuscripts | verification/
+│     ├─ auth/                             firebase-verifier.ts, auth.setup.ts (M1)
+│     ├─ methods/                          ★ M2: methods.types / -facts / -renderer / -grounding / .service / .routes
+│     ├─ journal-profiles/                 ★ M3: journal-profile.schema / default-profile / .service / .routes (bộ sinh hợp lệ: shared/constants/generators.ts)
+│     └─ evidence | export | jobs | llm | verification/
 │                                          ← thư mục RỖNG, chỗ dành cho module sau
 └─ tests/
    ├─ fixtures/synthetic-run.ts            dữ liệu GIẢ (ghi rõ trong file)
@@ -259,9 +265,12 @@ erDiagram
 | `Claim`, `ClaimItem` | Theme do nhà nghiên cứu định nghĩa trong `slr-be`, là nguồn của "synthesis finding". |
 | `SnapshotArtifact` | Payload nguyên vẹn của A1/A2/A7/A10 + trạng thái duyệt/validate. |
 | `SnapshotSupplement` | Dữ liệu `slr-be` **không đóng băng theo run**: `prisma_writing_export`, `rq_findings`. Snapshot giữ bản sao tại thời điểm import. |
+| `Manuscript` | Bản thảo viết từ đúng một snapshot (duy nhất theo `snapshotId`). |
+| `ManuscriptSection` | Một mục của bản thảo, theo `sectionKey` (hiện chỉ `methods`). |
+| `SectionRevision` | Một phiên bản của mục: `markdown`, `facts` (kèm đường dẫn nguồn), `warnings`, `generator`, `contentHash`. **Chỉ ghi thêm** (trigger DB chặn UPDATE/DELETE); đổi nội dung = phiên bản mới. |
 | `ProvenanceEvent` | Nhật ký chỉ ghi thêm (trigger DB chặn UPDATE/DELETE). Ghi `actor`, `activity`, `inputRefs`, `outputRefs`, `method`. |
 
-**Bảng sẽ cần thêm** (đề xuất, chưa có): `JournalProfile`, `Manuscript`, `ManuscriptSection`, `SectionRevision`, `ParagraphPlan`, `DraftParagraph`, `CitationRef`, `ReviewIssue`, `QualityGateResult`, `Approval` (H1/H2/H3), `ExportPackage`. Xem roadmap mục 4.
+**Bảng sẽ cần thêm** (đề xuất, chưa có): `JournalProfile`, `ParagraphPlan`, `DraftParagraph`, `CitationRef`, `ReviewIssue`, `QualityGateResult`, `Approval` (H1/H2/H3), `ExportPackage`. Xem roadmap mục 4.
 
 ---
 
@@ -283,6 +292,8 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | Method | Đường dẫn | Mô tả | Kết quả |
 |---|---|---|---|
 | GET | `/health` | Kiểm tra sống | 200 |
+| GET | `/journal-profiles` | Danh sách profile khung bài báo (hiện có `generic-imrad`, luôn chưa xác minh) | 200; 401 |
+| GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 401; 404 `JOURNAL_PROFILE_NOT_FOUND` |
 | POST | `/projects` | Tạo project `{name, slrProjectId}` | 201; 409 `PROJECT_EXISTS`; 400 `VALIDATION_ERROR` |
 | GET | `/projects` | Project của người gọi | 200 |
 | GET | `/projects/:projectId` | Xem project | 200; 404 `PROJECT_NOT_FOUND` |
@@ -291,6 +302,9 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | POST | `/projects/:projectId/snapshots/from-slr` | Body `{runId}`; service tự lấy từ `slr-be` → `sourceSystem='slr-be'` | 201 / 200 / 422 / lỗi `SLR_*` |
 | GET | `/projects/:projectId/snapshots` | Danh sách (không payload) | 200 |
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Số đếm, trạng thái artifact, supplements (kind/hash), issues | 200; 404 `SNAPSHOT_NOT_FOUND` |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Sinh phần Methods từ snapshot (mẫu cố định, không LLM). 201 phiên bản mới, 200 khi văn bản không đổi | 201 / 200; 422 `METHODS_INPUT_MISSING` |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Phiên bản mới nhất + danh sách các phiên bản (không kèm văn bản) | 200; 404 `METHODS_NOT_GENERATED` |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods/revisions/:version` | Một phiên bản đã lưu | 200; 400 `INVALID_VERSION`; 404 `METHODS_REVISION_NOT_FOUND` |
 
 Mọi route cần xác thực. Project/snapshot của người khác luôn trả **404** (không 403, để không dò được ID).
 
@@ -300,7 +314,7 @@ Mọi route cần xác thực. Project/snapshot của người khác luôn trả
 |---|---|
 | Xác thực | `UNAUTHORIZED` (401), `INVALID_TOKEN` (401) |
 | Đầu vào | `VALIDATION_ERROR`, `INVALID_JSON`, `PAYLOAD_TOO_LARGE` (413), `INVALID_RUN_ID`, `INVALID_SLR_PROJECT_ID`, `INVALID_IMPORT_INPUT`, `RUN_PROJECT_MISMATCH` (400) |
-| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429) |
+| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429), `JOURNAL_PROFILE_NOT_FOUND` (404), `METHODS_INPUT_MISSING` (422), `METHODS_NOT_GENERATED` / `METHODS_REVISION_NOT_FOUND` (404), `INVALID_VERSION` (400), `METHODS_UNGROUNDED_NUMBER` (500, lỗi lập trình: văn bản có số không nằm trong dữ kiện) |
 | Upstream `slr-be` | `SLR_AUTH_REJECTED` (401), `SLR_FORBIDDEN` (403), `SLR_NOT_FOUND` (404), `SLR_UPSTREAM_ERROR`, `SLR_INVALID_RESPONSE`, `SLR_RESPONSE_TOO_LARGE`, `SLR_UNREACHABLE` (502), `SLR_TIMEOUT` (504) |
 | Khác | `INTERNAL_SERVER_ERROR` (500) |
 
@@ -504,6 +518,8 @@ flowchart LR
 11. **Fixture:** dữ liệu giả phải ghi rõ "SYNTHETIC"; dữ liệu thật phải che thông tin cá nhân. Không đưa khoá API hay token vào repo.
 12. **Môi trường Windows:** cảnh báo `LF will be replaced by CRLF` là vô hại. Nếu sửa file bằng script, **kiểm tra file không bị rỗng/cắt cụt** (đã từng xảy ra một lần do lỗi mã hoá), ưu tiên công cụ sửa file thay vì script ghi đè.
 13. **Mỗi route mới** phải được thêm vào `src/config/openapi.ts` (viết tay) và có test OpenAPI.
+14. **Tham số id trong URL** (`:projectId`, `:snapshotId`...) đi qua `guardIdParam` (`src/middleware/param-guard.middleware.ts`): id chứa NUL hoặc dài quá 200 ký tự trả 404 như id không tồn tại, nếu không PostgreSQL báo lỗi và thành 500. Route mới có tham số id mới thì đăng ký `router.param(...)` tương tự. Đường dẫn có mã phần trăm hỏng (`%ZZ`) làm Express ném lỗi 400; `error.middleware.ts` trả 400 `BAD_REQUEST` chung chung thay vì 500.
+15. **Văn bản sinh ra phải tách dữ kiện khỏi câu chữ** (xem M2): dữ kiện có đường dẫn nguồn, câu chữ chỉ dùng dữ kiện, và bước kiểm tra số chặn mọi con số không có trong dữ kiện.
 
 ---
 
@@ -536,15 +552,57 @@ flowchart TD
 - **Test:** token hết hạn/giả/thiếu; user không thuộc project SLR; uid khác nhau cô lập dữ liệu; production không bao giờ bật dev auth.
 - **Nghiệm thu:** không còn đường nào vào API mà không có danh tính xác minh khi `NODE_ENV=production`.
 
-### M2 — Methods / PRISMA bằng mẫu cố định (văn bản đầu tiên, không LLM)
+### M2 — Methods / PRISMA bằng mẫu cố định (văn bản đầu tiên, không LLM) — **đã code, chờ merge**
+
+**Thiết kế 3 lớp** (để sau này thay phần viết câu bằng LLM mà không đụng tới phần khoa học):
+
+```mermaid
+flowchart LR
+    S[(Snapshot<br/>A10, A2, PRISMA export)] --> F[Lớp 1: dữ kiện<br/>methods-facts.ts<br/>mỗi dữ kiện có đường dẫn nguồn<br/>explicit hoặc missing]
+    F --> R[Lớp 2: câu chữ<br/>methods-renderer.ts<br/>mẫu cố định tiếng Anh]
+    R --> G{Lớp 3: kiểm tra số<br/>methods-grounding.ts}
+    G -- mọi số nằm trong dữ kiện --> V[(SectionRevision<br/>phiên bản mới)]
+    G -- có số lạ --> X[500 METHODS_UNGROUNDED_NUMBER<br/>không lưu gì]
+```
+
+- **Lớp 1 (`methods-facts.ts`, hàm thuần):** rút từ snapshot các dữ kiện: câu hỏi nghiên cứu, PICOC, tiêu chí đưa vào/loại ra, nguồn tìm kiếm, các số của luồng PRISMA, lý do loại báo cáo, số nghiên cứu, khoảng năm (tính từ A2), số nghiên cứu đã trích xuất và đã đánh giá chất lượng. Giá trị không có hoặc sai kiểu (âm, thập phân, chuỗi, null, số vượt 2^53) thành `missing`, **không bao giờ đoán**. `0` giữ là `0`. Danh sách lý do loại báo cáo chỉ `explicit` khi **mọi** phần tử hợp lệ; một phần tử hỏng thì cả danh sách là `missing` (không bao giờ hiểu thành "không báo cáo nào bị loại"). Nhãn năm phải đúng 4 chữ số và năm đó phải có nghiên cứu. Văn bản chỉ gồm ký tự vô hình (zero-width, điều khiển) không phải là văn bản.
+- **Lớp 2 (`methods-renderer.ts`):** mẫu tiếng Anh cố định, chỉ nói điều dữ kiện cho phép; dữ kiện thiếu được liệt kê là "không báo cáo". Văn bản của người dùng (câu hỏi, tiêu chí, nguồn tìm kiếm) đi qua `clean()`: bỏ ký tự điều khiển và zero-width (`invisible-text.ts`), gộp xuống một dòng, thoát `&` trước (để `&#49;` không thành ký tự), thoát ký hiệu nội dòng (`` ` * _ [ ] ~ < > ``) và cả ký hiệu mở khối ở đầu dòng (`#`, `+`, `-`, `=`, `|`, `1.`, `1)`). Đây là phần sẽ thay bằng LLM ở M4 trở đi.
+- **Lớp 3 (`methods-grounding.ts`):** mọi chuỗi chữ số trong văn bản phải nằm trong dữ kiện. Chữ số của mọi hệ chữ (toàn chiều rộng, Ả Rập, Devanagari, chỉ số trên) được quy về ASCII trước khi so. Giới hạn: không thấy số viết bằng chữ ("six"), bỏ qua dấu âm và dấu thập phân (3.5 cần có cả 3 và 5), một chữ số xuất hiện trong chính văn bản của review (ví dụ "87%" trong câu hỏi nghiên cứu) coi như có căn cứ ở mọi nơi, và không kiểm tra số đứng cạnh đúng từ; các phần đó thuộc cổng kiểm chứng ở M8.
+- **Lưu trữ:** `Manuscript` (1 snapshot) → `ManuscriptSection` (`methods`) → `SectionRevision` (chỉ ghi thêm). "Không đổi" nghĩa là văn bản giống từng byte (hash chỉ tính trên văn bản và bộ sinh); chỉ đổi phần ẩn như `source_id` mà văn bản vẫn vậy thì không có phiên bản mới (200), còn đổi dữ liệu nguồn làm đổi văn bản thì ra phiên bản kế tiếp (201). Mỗi phiên bản mới ghi `ProvenanceEvent` `manuscript.methods.generate`. Các request đồng thời trên cùng một snapshot được xếp hàng bằng khoá tư vấn của PostgreSQL (`pg_advisory_xact_lock`), nên 40 request cùng lúc vẫn chỉ ra 1 phiên bản và phiên bản không bị đứt quãng.
+- **Cảnh báo kèm theo:** `FACT_MISSING` cho mỗi dữ kiện thiếu, và các mã `PRISMA_*` đã ghi lúc import snapshot.
+- **Cách thử nhanh:** import snapshot bằng `from-slr`, rồi `POST /projects/:id/snapshots/:sid/manuscript/methods`. Fixture thật `tests/fixtures/real/slr-be-demo-run.json` cho ra văn bản đầy đủ nhưng nhiều dòng "không báo cáo" vì dự án seed không có nguồn tìm kiếm.
+- **Ngôn ngữ:** văn bản bản thảo là tiếng Anh (đích là bài báo quốc tế); giao diện và tài liệu nội bộ là tiếng Việt.
+- **Còn lại:** Results/Discussion theo cách tương tự (M6, M7); thay mẫu bằng LLM sau M4 phải giữ nguyên lớp 1 và lớp 3.
+
+*Thiết kế ban đầu của M2 (để đối chiếu):*
 - **Đầu vào:** `SnapshotArtifact` A10 (`protocol`, `search_strategy`, `selection`, `selected_studies`) + `SnapshotSupplement.prisma_writing_export` (`flow`, `includedStudies`) + A2 (đặc điểm nghiên cứu).
 - **Đầu ra:** một `ManuscriptSection` (Markdown) cho Methods và mô tả luồng PRISMA, **mỗi con số kèm khoá nguồn** (ví dụ `flow.recordsScreened`), và `SectionRevision` đầu tiên.
 - **Quy tắc:** chỉ lắp từ dữ liệu có sẵn; trường `null`/thiếu → ghi rõ "không báo cáo", **không bịa**. Cảnh báo `PRISMA_*` từ snapshot phải hiện trong kết quả.
-- **API gợi ý:** `POST /projects/:id/snapshots/:sid/manuscript/methods` → 201 `{sectionId, revisionId, markdown, sources[]}`.
+- **API:** xem bảng ở mục 8.
 - **Test:** golden test với fixture thật; mọi số trong Markdown đều truy được về khoá nguồn; thiếu PRISMA export → có cảnh báo, không có số.
 - **Nghiệm thu:** sinh lại cùng snapshot cho ra cùng văn bản (xác định).
 
-### M3 — Journal Profile
+### M3 — Journal Profile — **đã code, chờ merge**
+
+Khung bài báo mặc định, **không phải chính sách của một tạp chí nào**. Là hằng số trong code (chưa có bảng, chưa có CRUD), nhưng có schema chặt để sau này thêm profile của tạp chí thật mà không thể vô tình trình bày gợi ý như chính sách.
+
+- **Profile `generic-imrad` (version 1):** 6 mục theo thứ tự: Abstract, Introduction, Methods, Results, Discussion, Conclusion. Mỗi mục có `key`, `order` (1 đến 6, không đứt quãng), `required`, `wordBudget` (min/max), `sources` (dữ liệu để viết mục đó, theo `docs/mvp-scope.md` mục 5), `generator` (bộ sinh đã có, hiện chỉ Methods: `methods-template@1`; mục khác `null`) và `purpose`.
+- **Luôn "chưa xác minh":** `verification = { status: 'unverified', verifiedAt: null, verifiedBy: null, policySourceUrls: [] }`, `wordBudgetSource = 'suggested_default'` (số từ là gợi ý của hệ thống, không phải giới hạn của tạp chí), `citationStyle = null`, và có `notice` hiện ở mọi nơi hiển thị profile.
+- **Quy tắc trong schema** (`journal-profile.schema.ts`, kiểm tra ngay khi server khởi động — profile vi phạm thì server không chạy):
+  - profile `unverified` không được mang ngày xác minh, người xác minh hay nguồn chính sách, bắt buộc có `notice`, và số từ chỉ được là `suggested_default`;
+  - profile `verified` bắt buộc có ngày, người xác minh, ít nhất một URL chính sách và tên tạp chí;
+  - khoá mục duy nhất; các mục **liệt kê đúng thứ tự** với `order` 1, 2, 3... không đứt quãng (để code đọc theo mảng không xếp ngược bản thảo); `min` không lớn hơn `max`; nguồn thuộc danh sách cho phép (`A1`, `A2`, `A7`, `A10`, `prisma_writing_export`, `rq_findings`, `other_sections`) và không lặp;
+  - URL nguồn chính sách và URL tạp chí chỉ nhận **https** trên tên miền công khai (từ chối `javascript:`, `data:`, `file:`, `http`, `localhost`, địa chỉ IP), tối đa 2048 ký tự, nguồn chính sách không lặp; ngày xác minh không được ở tương lai (cho lệch đồng hồ 5 phút);
+  - văn bản (tên, mục đích, người xác minh, thông báo) phải có chữ nhìn thấy được, không chỉ khoảng trắng hay ký tự zero-width;
+  - `generator` phải nằm trong `KNOWN_GENERATORS` (`src/shared/constants/generators.ts`), nên profile không hứa một cách viết mà hệ thống không có. Thêm bộ sinh mới thì thêm vào danh sách đó;
+  - giới hạn: tối đa 20 mục, `version` tối đa 1.000.000, `id` tối đa 64 ký tự.
+- **API:** `GET /api/journal-profiles` và `GET /api/journal-profiles/:profileId` (cần đăng nhập; 404 `JOURNAL_PROFILE_NOT_FOUND`). Người gọi nhận **bản sao**, và hằng số gốc được đóng băng sâu (`deepFreeze`), nên không ai sửa được profile mà request sau sẽ thấy. Không có route ghi.
+- **Khi chọn tạp chí cụ thể:** thêm một profile mới với `id` riêng vào `PROFILES` (`journal-profiles.service.ts`), điền `journal`, `verification` đầy đủ và `wordBudgetSource: 'journal_policy'`. **Không sửa** `generic-imrad` thành profile của tạp chí. Khi nội dung profile đổi thì tăng `version`.
+- **Dùng ở đâu tiếp theo:** M5 (dàn ý) lấy danh sách mục, thứ tự và ngân sách từ profile; bản thảo sẽ ghi `id` và `version` của profile đã dùng.
+- **Còn lại:** chưa lưu profile nào vào bản thảo (làm ở M5); chưa có bảng nếu sau này cần profile do người dùng tạo.
+- **Quyết định thiết kế đã biết:** profile `verified` vẫn được dùng `wordBudgetSource: 'suggested_default'` (tạp chí có thể không nêu giới hạn từ), và profile `unverified` vẫn được mang tên tạp chí cùng kiểu trích dẫn (bản nháp cho một nơi chưa kiểm tra chính sách), miễn là có `notice`.
+
+*Thiết kế ban đầu của M3 (để đối chiếu):*
 - Một **hằng số** IMRaD mặc định (Abstract, Introduction, Methods, Results, Discussion, Conclusion; phân bổ số từ), `verified_at = null`, `policy_source_urls = []`, giao diện/ API phải hiện "chưa xác minh với chính sách tạp chí". Chưa cần CRUD. Khi chọn tạp chí cụ thể mới thêm bảng và người chịu trách nhiệm.
 
 ### M4 — `LLMProvider`
