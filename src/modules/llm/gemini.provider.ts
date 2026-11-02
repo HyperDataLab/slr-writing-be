@@ -1,14 +1,18 @@
-import { createHash } from 'node:crypto';
 import { createLogger } from '../../config/logger.js';
+import { problemWithSecretBearingUrl } from '../../shared/utils/safe-url.js';
 import { LlmError } from './llm.errors.js';
+import { clampInteger, clampNumber, parseRetryAfter, promptHashOf, redactKey } from './llm.limits.js';
 import type { LlmModelInfo, LlmProvider, LlmRequest, LlmResult, LlmUsage } from './llm.types.js';
 
 export interface GeminiOptions {
   apiKey: string;
   model: string;
-  /** Where the API lives. Must be https (checked when the settings are read), except a server on this machine in tests. */
+  /** Where the API lives. https, or http for a server on this machine (tests). No credentials, query or fragment. */
   baseUrl: string;
+  /** Longest wait for one request to the service. */
   timeoutMs: number;
+  /** Longest wait for the whole call, retries and waits between them included. Default 120 s. */
+  totalTimeoutMs?: number;
   /** Extra tries after the first, for a busy or failing service and for an answer of the wrong shape. */
   maxRetries: number;
   maxOutputTokens: number;
@@ -28,7 +32,9 @@ const MAX_RETRY_AFTER_MS = 10_000;
 const BASE_BACKOFF_MS = 500;
 const MAX_BACKOFF_MS = 8_000;
 const DEFAULT_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
-
+const DEFAULT_TOTAL_TIMEOUT_MS = 120_000;
+// Statuses that mean "try again later" rather than "your request is wrong".
+const RETRYABLE_CLIENT_STATUSES = new Set([408, 425]);
 const BLOCKING_FINISH_REASONS = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY']);
 
 interface RawAnswer { text: string; finishReason: string | undefined; usage: LlmUsage }
@@ -53,62 +59,84 @@ export class GeminiProvider implements LlmProvider {
   readonly model: string;
   readonly #apiKey: string;
   readonly #options: GeminiOptions;
+  readonly #endpoint: string;
+  readonly #retryAfterMs = new WeakMap<LlmError, number>();
 
   constructor(options: GeminiOptions) {
     if (!options.apiKey) throw new LlmError('LLM_NOT_CONFIGURED');
+    // A header value cannot hold a line break or a character outside Latin-1; find that now, not on every call.
+    if (!/^[\x21-\x7E]+$/.test(options.apiKey)) throw new Error('The Gemini key contains a character that cannot be sent in a header');
     if (!/^[a-z0-9][a-z0-9.-]{0,63}$/.test(options.model)) throw new Error('The Gemini model name is not valid');
+    const problem = problemWithSecretBearingUrl(options.baseUrl, { allowLocalHttp: true });
+    if (problem) throw new Error(`The Gemini address is not acceptable: ${problem}`);
+
     this.#apiKey = options.apiKey;
     this.#options = options;
     this.model = options.model;
+    const base = new URL(options.baseUrl);
+    base.pathname = `${base.pathname.replace(/\/+$/, '')}/`;
+    this.#endpoint = new URL(`v1beta/models/${options.model}:generateContent`, base).toString();
   }
 
   // Printing or serialising the provider must not show the key.
   toJSON() { return { name: this.name, model: this.model }; }
 
   async generateStructured<T>(request: LlmRequest<T>): Promise<LlmResult<T>> {
-    const maxOutputTokens = Math.max(1, Math.min(request.maxOutputTokens ?? this.#options.maxOutputTokens, this.#options.maxOutputTokens));
-    const temperature = Math.min(2, Math.max(0, request.temperature ?? DEFAULT_TEMPERATURE));
+    const maxOutputTokens = clampInteger(request.maxOutputTokens, 1, this.#options.maxOutputTokens, this.#options.maxOutputTokens);
+    const temperature = clampNumber(request.temperature, 0, 2, DEFAULT_TEMPERATURE);
     const sleep = this.#options.sleep ?? defaultSleep;
     const started = Date.now();
+    const deadline = started + (this.#options.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS);
     const totals: LlmUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
     let correction: string | undefined;
     let invalidAnswers = 0;
 
-    for (let attempt = 1; ; attempt += 1) {
-      const attemptsLeft = attempt <= this.#options.maxRetries;
-      try {
-        const answer = await this.#call(request, { maxOutputTokens, temperature, correction });
-        totals.inputTokens += answer.usage.inputTokens;
-        totals.outputTokens += answer.usage.outputTokens;
-        totals.totalTokens += answer.usage.totalTokens;
+    try {
+      for (let attempt = 1; ; attempt += 1) {
+        const attemptsLeft = attempt <= this.#options.maxRetries;
+        try {
+          const remaining = deadline - Date.now();
+          if (remaining <= 0) throw new LlmError('LLM_TIMEOUT');
+          const answer = await this.#call(request, { maxOutputTokens, temperature, correction, timeoutMs: Math.min(this.#options.timeoutMs, remaining) });
+          totals.inputTokens += answer.usage.inputTokens;
+          totals.outputTokens += answer.usage.outputTokens;
+          totals.totalTokens += answer.usage.totalTokens;
 
-        if (answer.finishReason === 'MAX_TOKENS') throw new LlmError('LLM_OUTPUT_TRUNCATED');
-        if (answer.finishReason && BLOCKING_FINISH_REASONS.has(answer.finishReason)) throw new LlmError('LLM_BLOCKED');
+          if (answer.finishReason === 'MAX_TOKENS') throw new LlmError('LLM_OUTPUT_TRUNCATED');
+          if (answer.finishReason && BLOCKING_FINISH_REASONS.has(answer.finishReason)) throw new LlmError('LLM_BLOCKED');
 
-        let parsed: unknown;
-        try { parsed = JSON.parse(stripFence(answer.text)); } catch { parsed = undefined; }
-        const checked = parsed === undefined ? undefined : request.schema.safeParse(parsed);
-        if (checked?.success) {
-          return {
-            output: checked.data,
-            modelInfo: this.#info(request, temperature, maxOutputTokens),
-            usage: totals,
-            latencyMs: Date.now() - started,
-            attempts: attempt,
-          };
+          let parsed: unknown;
+          try { parsed = JSON.parse(stripFence(answer.text)); } catch { parsed = undefined; }
+          const checked = parsed === undefined ? undefined : request.schema.safeParse(parsed);
+          if (checked?.success) {
+            return {
+              output: checked.data,
+              modelInfo: this.#info(request, temperature, maxOutputTokens),
+              usage: totals,
+              latencyMs: Date.now() - started,
+              attempts: attempt,
+            };
+          }
+
+          // An answer of the wrong shape is worth one more try with the problems named, not many.
+          invalidAnswers += 1;
+          if (invalidAnswers > 1 || !attemptsLeft) throw new LlmError('LLM_INVALID_OUTPUT');
+          const problems = checked && !checked.success
+            ? checked.error.issues.slice(0, 5).map((issue) => `${issue.path.join('.') || 'answer'}: ${issue.message}`.slice(0, 160)).join('; ')
+            : 'the answer was not valid JSON';
+          correction = `Your previous answer was rejected (${problems}). Answer again with JSON only, in exactly the shape that was asked for.`;
+        } catch (error) {
+          if (!(error instanceof LlmError) || !error.retryable || !attemptsLeft) throw error;
+          const wait = this.#retryDelay(error, attempt);
+          // Waiting would run past the deadline: stop now instead of sleeping and then failing.
+          if (Date.now() + wait >= deadline) throw new LlmError('LLM_TIMEOUT');
+          await sleep(wait);
         }
-
-        // An answer of the wrong shape is worth one more try with the problems named, not many.
-        invalidAnswers += 1;
-        if (invalidAnswers > 1 || !attemptsLeft) throw new LlmError('LLM_INVALID_OUTPUT');
-        const problems = checked && !checked.success
-          ? checked.error.issues.slice(0, 5).map((issue) => `${issue.path.join('.') || 'answer'}: ${issue.message}`.slice(0, 160)).join('; ')
-          : 'the answer was not valid JSON';
-        correction = `Your previous answer was rejected (${problems}). Answer again with JSON only, in exactly the shape that was asked for.`;
-      } catch (error) {
-        if (!(error instanceof LlmError) || !error.retryable || !attemptsLeft) throw error;
-        await sleep(this.#retryDelay(error, attempt));
       }
+    } catch (error) {
+      // Tokens charged for calls that did not produce a usable answer still count against the budget.
+      if (error instanceof LlmError && totals.totalTokens > 0) error.usage = { ...totals };
+      throw error;
     }
   }
 
@@ -118,13 +146,11 @@ export class GeminiProvider implements LlmProvider {
       model: this.model,
       promptTemplateId: request.promptTemplateId,
       promptTemplateVersion: request.promptTemplateVersion,
-      promptHash: `sha256:${createHash('sha256').update(`${request.system}\n---\n${request.prompt}`).digest('hex')}`,
+      promptHash: promptHashOf(request.system, request.prompt),
       temperature,
       maxOutputTokens,
     };
   }
-
-  #retryAfterMs = new WeakMap<LlmError, number>();
 
   #retryDelay(error: LlmError, attempt: number): number {
     const asked = this.#retryAfterMs.get(error);
@@ -132,10 +158,8 @@ export class GeminiProvider implements LlmProvider {
     return Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
   }
 
-  async #call<T>(request: LlmRequest<T>, params: { maxOutputTokens: number; temperature: number; correction: string | undefined }): Promise<RawAnswer> {
-    const { baseUrl, timeoutMs } = this.#options;
+  async #call<T>(request: LlmRequest<T>, params: { maxOutputTokens: number; temperature: number; correction: string | undefined; timeoutMs: number }): Promise<RawAnswer> {
     const fetchImpl = this.#options.fetchImpl ?? fetch;
-    const url = `${baseUrl.replace(/\/+$/, '')}/v1beta/models/${this.model}:generateContent`;
     const generationConfig: Record<string, unknown> = {
       temperature: params.temperature,
       maxOutputTokens: params.maxOutputTokens,
@@ -152,26 +176,28 @@ export class GeminiProvider implements LlmProvider {
 
     let response: Response;
     try {
-      response = await fetchImpl(url, {
+      response = await fetchImpl(this.#endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json', 'x-goog-api-key': this.#apiKey },
         body,
         redirect: 'error',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(params.timeoutMs),
       });
     } catch (error) {
       if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new LlmError('LLM_TIMEOUT', { retryable: true });
-      throw new LlmError('LLM_UNREACHABLE', { retryable: true });
+      // A refused redirect will be refused again; asking again cannot help.
+      const reason = String((error as { cause?: { message?: unknown } })?.cause?.message ?? (error as Error)?.message ?? '');
+      throw new LlmError('LLM_UNREACHABLE', { retryable: !/redirect/i.test(reason) });
     }
 
     if (response.status === 429) {
       const error = new LlmError('LLM_RATE_LIMITED', { retryable: true });
-      const seconds = Number(response.headers.get('retry-after'));
-      if (Number.isFinite(seconds) && seconds >= 0) this.#retryAfterMs.set(error, seconds * 1000);
+      const asked = parseRetryAfter(response.headers.get('retry-after'));
+      if (asked !== undefined) this.#retryAfterMs.set(error, asked);
       await this.#logRefusal(response);
       throw error;
     }
-    if (response.status >= 500) {
+    if (response.status >= 500 || RETRYABLE_CLIENT_STATUSES.has(response.status)) {
       await this.#logRefusal(response);
       throw new LlmError('LLM_UPSTREAM_ERROR', { retryable: true });
     }
@@ -194,7 +220,7 @@ export class GeminiProvider implements LlmProvider {
 
   /**
    * The service says why it refused (an unknown model, a key that is not valid). That is for whoever runs the server,
-   * so it goes to the log, cut short and with the key removed if it should appear, and never into an answer to a user.
+   * so it goes to the log, cut short and with the key, or any long part of it, removed, and never into an answer to a user.
    */
   async #logRefusal(response: Response): Promise<void> {
     let reason = '';
@@ -205,13 +231,16 @@ export class GeminiProvider implements LlmProvider {
     } catch {
       await response.body?.cancel().catch(() => undefined);
     }
-    logger.warn({ status: response.status, model: this.model, reason: reason.split(this.#apiKey).join('<key>').slice(0, 400) }, 'The language model service refused a request');
+    logger.warn({ status: response.status, model: this.model, reason: redactKey(reason, this.#apiKey).slice(0, 400) }, 'The language model service refused a request');
   }
 
   async #readLimited(response: Response, overrideLimit?: number): Promise<string> {
     const limit = overrideLimit ?? this.#options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     const declared = Number(response.headers.get('content-length'));
-    if (Number.isFinite(declared) && declared > limit) throw new LlmError('LLM_UPSTREAM_ERROR');
+    if (Number.isFinite(declared) && declared > limit) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new LlmError('LLM_UPSTREAM_ERROR');
+    }
     if (!response.body) return '';
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -244,7 +273,8 @@ export class GeminiProvider implements LlmProvider {
     const meta = (typeof root.usageMetadata === 'object' && root.usageMetadata !== null ? root.usageMetadata : {}) as Record<string, unknown>;
     const inputTokens = asNumber(meta.promptTokenCount);
     const outputTokens = asNumber(meta.candidatesTokenCount) + asNumber(meta.thoughtsTokenCount);
-    const totalTokens = asNumber(meta.totalTokenCount) || inputTokens + outputTokens;
+    // A total that is smaller than its own parts cannot be right; never count less than the parts.
+    const totalTokens = Math.max(asNumber(meta.totalTokenCount), inputTokens + outputTokens);
     return {
       text,
       finishReason: typeof candidate.finishReason === 'string' ? candidate.finishReason : undefined,

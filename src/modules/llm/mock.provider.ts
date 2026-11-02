@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
 import { LlmError } from './llm.errors.js';
+import { promptHashOf } from './llm.limits.js';
 import type { LlmProvider, LlmRequest, LlmResult } from './llm.types.js';
 
 /**
@@ -31,7 +31,7 @@ export class MockLlmProvider implements LlmProvider {
         model: this.model,
         promptTemplateId: request.promptTemplateId,
         promptTemplateVersion: request.promptTemplateVersion,
-        promptHash: `sha256:${createHash('sha256').update(`${request.system}\n---\n${request.prompt}`).digest('hex')}`,
+        promptHash: promptHashOf(request.system, request.prompt),
         temperature: request.temperature ?? 0.2,
         maxOutputTokens: request.maxOutputTokens ?? 0,
       },

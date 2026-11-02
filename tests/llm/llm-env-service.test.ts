@@ -36,8 +36,11 @@ describe('settings', () => {
   });
 
   it('only sends the key to an https address, except a server on this machine outside production', () => {
-    for (const url of ['http://example.com', 'ftp://example.com', 'http://localhost.evil.com', 'http://127.0.0.1.evil.com']) {
+    for (const url of ['http://example.com', 'ftp://example.com', 'ws://localhost:9', 'ftp://127.0.0.1:9', 'http://localhost.evil.com', 'http://127.0.0.1.evil.com']) {
       expect(() => parseEnv({ ...dev, GEMINI_API_BASE_URL: url }), url).toThrow(/https/);
+    }
+    for (const url of ['https://user:pass@example.com', 'https://example.com/?x=1', 'https://example.com/#frag', 'http://evil.example@127.0.0.1:9']) {
+      expect(() => parseEnv({ ...dev, GEMINI_API_BASE_URL: url }), url).toThrow(/GEMINI_API_BASE_URL/);
     }
     expect(parseEnv({ ...dev, GEMINI_API_BASE_URL: 'https://example.com' }).GEMINI_API_BASE_URL).toBe('https://example.com');
     expect(parseEnv({ ...dev, GEMINI_API_BASE_URL: 'http://127.0.0.1:9999' }).GEMINI_API_BASE_URL).toBe('http://127.0.0.1:9999');
@@ -53,6 +56,18 @@ describe('settings', () => {
       LLM_MAX_OUTPUT_TOKENS: 4_096, LLM_MAX_INPUT_CHARS: 200_000, LLM_MAX_CONCURRENCY: 4, LLM_DAILY_TOKEN_BUDGET: 0,
     });
     expect(parseEnv({ ...dev, GEMINI_THINKING_BUDGET: '' }).GEMINI_THINKING_BUDGET).toBe(0);
+    expect(parseEnv(dev).LLM_TOTAL_TIMEOUT_MS).toBe(120_000);
+  });
+
+  it('treats a blank number as its default, not as 0', () => {
+    const blank = parseEnv({ ...dev, LLM_MAX_RETRIES: '', LLM_TIMEOUT_MS: ' ', LLM_TOTAL_TIMEOUT_MS: '', LLM_MAX_OUTPUT_TOKENS: '', LLM_MAX_INPUT_CHARS: '', LLM_MAX_CONCURRENCY: '', LLM_DAILY_TOKEN_BUDGET: '' });
+    expect(blank).toMatchObject({ LLM_MAX_RETRIES: 2, LLM_TIMEOUT_MS: 60_000, LLM_TOTAL_TIMEOUT_MS: 120_000, LLM_MAX_OUTPUT_TOKENS: 4_096, LLM_MAX_INPUT_CHARS: 200_000, LLM_MAX_CONCURRENCY: 4, LLM_DAILY_TOKEN_BUDGET: 0 });
+  });
+
+  it('refuses a key that cannot be sent in a header', () => {
+    for (const key of ['AQ.line1\nline2', 'AQ.with space inside', 'AQ.tab\there', 'AQ.\u043a\u043b\u044e\u0447', 'AQ.nul\u0000x']) {
+      expect(() => parseEnv({ ...dev, GEMINI_API_KEY: key }), JSON.stringify(key)).toThrow(/GEMINI_API_KEY/);
+    }
   });
 
   it.each([

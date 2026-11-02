@@ -16,6 +16,8 @@ const guard = (inner: LlmProvider) => new GuardedLlmProvider(inner, {
   maxOutputTokens: env.LLM_MAX_OUTPUT_TOKENS,
   maxConcurrency: env.LLM_MAX_CONCURRENCY,
   dailyTokenBudget: env.LLM_DAILY_TOKEN_BUDGET,
+  // A little longer than the provider's own limit, so the provider's clean timeout wins when it can.
+  callTimeoutMs: env.LLM_TOTAL_TIMEOUT_MS + 5_000,
 });
 
 function fromSettings(): GuardedLlmProvider | null {
@@ -25,6 +27,7 @@ function fromSettings(): GuardedLlmProvider | null {
     model: env.GEMINI_MODEL,
     baseUrl: env.GEMINI_API_BASE_URL,
     timeoutMs: env.LLM_TIMEOUT_MS,
+    totalTimeoutMs: env.LLM_TOTAL_TIMEOUT_MS,
     maxRetries: env.LLM_MAX_RETRIES,
     maxOutputTokens: env.LLM_MAX_OUTPUT_TOKENS,
     thinkingBudget: env.GEMINI_THINKING_BUDGET,

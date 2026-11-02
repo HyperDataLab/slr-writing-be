@@ -165,17 +165,83 @@ describe('GuardedLlmProvider', () => {
   });
 
   it('stops spending when the daily budget is used up, and starts again the next UTC day', async () => {
+    // One call can cost at most 53 tokens here (3 for the input, 50 for the output ceiling), so it is let in
+    // only while that much room is left under the budget.
     let now = new Date('2026-11-03T10:00:00Z');
     const guarded = new GuardedLlmProvider(fixed(40), { ...options, dailyTokenBudget: 100, now: () => now });
-    await guarded.generateStructured(request());
-    await guarded.generateStructured(request());
-    await guarded.generateStructured(request()); // 120 spent; the check happens before a call, so this one was allowed at 80
-    expect(guarded.tokensSpentToday).toBe(120);
-    expect(await code(guarded.generateStructured(request()))).toBe('429:LLM_BUDGET_EXCEEDED');
+    await guarded.generateStructured(request()); // 0 + 52 <= 100, spends 40
+    await guarded.generateStructured(request()); // 40 + 52 <= 100, spends 40
+    expect(guarded.tokensSpentToday).toBe(80);
+    expect(await code(guarded.generateStructured(request()))).toBe('429:LLM_BUDGET_EXCEEDED'); // 80 + 52 > 100
+    expect(guarded.tokensSpentToday).toBe(80);
     now = new Date('2026-11-04T00:00:01Z');
     expect(guarded.tokensSpentToday).toBe(0);
     await guarded.generateStructured(request());
     expect(guarded.tokensSpentToday).toBe(40);
+  });
+
+  it('refuses every call when the budget is smaller than the worst case of one call', async () => {
+    const inner = fixed(1);
+    const guarded = new GuardedLlmProvider(inner, { ...options, dailyTokenBudget: 51 });
+    expect(await code(guarded.generateStructured(request()))).toBe('429:LLM_BUDGET_EXCEEDED');
+    expect(inner.seen).toHaveLength(0);
+  });
+
+  it('keeps parallel calls inside the budget by reserving the worst case of each before it starts', async () => {
+    let calls = 0;
+    const slow: LlmProvider = {
+      name: 's', model: 's',
+      async generateStructured<T>(req: LlmRequest<T>) { calls += 1; await tick(); return (await fixed(40).generateStructured(req)) as LlmResult<T>; },
+    };
+    const guarded = new GuardedLlmProvider(slow, { ...options, maxConcurrency: 4, dailyTokenBudget: 110 });
+    const outcomes = await Promise.all(Array.from({ length: 6 }, () => code(guarded.generateStructured(request()))));
+    // 52 + 52 = 104 <= 110 lets two start together; a third would need 156.
+    expect(outcomes.filter((o) => o === 'no error')).toHaveLength(2);
+    expect(calls).toBe(2);
+    expect(guarded.tokensSpentToday).toBeLessThanOrEqual(110);
+  });
+
+  it('counts the tokens of a call that failed after the service charged for it', async () => {
+    const failing: LlmProvider = {
+      name: 'f', model: 'f',
+      async generateStructured() { const e = new LlmError('LLM_OUTPUT_TRUNCATED'); e.usage = { inputTokens: 10, outputTokens: 40, totalTokens: 50 }; throw e; },
+    };
+    const guarded = new GuardedLlmProvider(failing, { ...options, dailyTokenBudget: 1_000 });
+    expect(await code(guarded.generateStructured(request()))).toBe('502:LLM_OUTPUT_TRUNCATED');
+    expect(guarded.tokensSpentToday).toBe(50);
+  });
+
+  it('charges the worst case when a provider reports usage that cannot be right (NaN, negative, missing)', async () => {
+    for (const bad of [NaN, -1000, Infinity, undefined as unknown as number]) {
+      const odd: LlmProvider = {
+        name: 'o', model: 'o',
+        async generateStructured<T>(req: LlmRequest<T>) {
+          const result = (await fixed(1).generateStructured(req)) as LlmResult<T>;
+          return { ...result, usage: { inputTokens: 0, outputTokens: 0, totalTokens: bad } };
+        },
+      };
+      const guarded = new GuardedLlmProvider(odd, { ...options, dailyTokenBudget: 1_000 });
+      await guarded.generateStructured(request());
+      expect(guarded.tokensSpentToday, String(bad)).toBe(53); // 3 for the 9 characters of input, 50 for the output ceiling
+    }
+  });
+
+  it('gives up on a provider that never answers, so the place is not held for ever', async () => {
+    const hung: LlmProvider = { name: 'h', model: 'h', generateStructured: () => new Promise(() => undefined) };
+    const guarded = new GuardedLlmProvider(hung, { ...options, maxConcurrency: 1, callTimeoutMs: 50 });
+    expect(await code(guarded.generateStructured(request()))).toBe('504:LLM_TIMEOUT');
+    // The place was freed: the next call is not stuck behind the first.
+    expect(await code(guarded.generateStructured(request()))).toBe('504:LLM_TIMEOUT');
+  });
+
+  it('treats NaN and the like as "no preference" for the output limit, never as "no limit"', async () => {
+    const inner = fixed();
+    const guarded = new GuardedLlmProvider(inner, options);
+    for (const asked of [NaN, Infinity, -Infinity, undefined]) await guarded.generateStructured(request({ maxOutputTokens: asked }));
+    await guarded.generateStructured(request({ maxOutputTokens: 0 }));
+    await guarded.generateStructured(request({ maxOutputTokens: -5 }));
+    await guarded.generateStructured(request({ maxOutputTokens: 10.9 }));
+    expect(inner.seen.map((r) => r.maxOutputTokens)).toEqual([50, 50, 50, 50, 1, 1, 10]);
   });
 
   it('has no limit when the budget is 0', async () => {
@@ -203,7 +269,8 @@ describe('GuardedLlmProvider', () => {
   it('calls that waited for a place see what the ones before them spent', async () => {
     const guarded = new GuardedLlmProvider(fixed(60), { ...options, maxConcurrency: 1, dailyTokenBudget: 100 });
     const results = await Promise.allSettled(Array.from({ length: 4 }, () => guarded.generateStructured(request())));
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(2);
-    expect(results.filter((r) => r.status === 'rejected' && (r.reason as LlmError).code === 'LLM_BUDGET_EXCEEDED')).toHaveLength(2);
+    // The first spends 60; for the next, 60 + 52 is over 100.
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected' && (r.reason as LlmError).code === 'LLM_BUDGET_EXCEEDED')).toHaveLength(3);
   });
 });

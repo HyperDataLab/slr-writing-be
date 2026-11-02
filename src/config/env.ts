@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { problemWithSecretBearingUrl } from '../shared/utils/safe-url.js';
 
 const optionalBooleanEnv = z.enum(['true', 'false']).optional().transform((value) =>
   value === undefined ? undefined : value === 'true',
@@ -40,20 +41,23 @@ const envSchema = z.object({
   // 'gemini' needs GEMINI_API_KEY; 'none' switches the model off. Unset means 'gemini' when GEMINI_API_KEY is set, otherwise 'none'.
   // There is no 'mock' here on purpose: a stand-in model is put in place by tests only, never by a setting.
   LLM_PROVIDER: z.enum(['gemini', 'none']).optional(),
-  GEMINI_API_KEY: blankIsUnset(z.string().trim().min(1).max(512).optional()),
+  // Visible ASCII only: anything else cannot be sent in a header, and a newline in a key is always a mistake.
+  GEMINI_API_KEY: blankIsUnset(z.string().trim().regex(/^[\x21-\x7E]{1,512}$/, 'must be one line of visible ASCII characters').optional()),
   // Google retires models quickly (gemini-2.5-flash already refuses new users), so this name will need updating from time to time.
   GEMINI_MODEL: z.string().regex(/^[a-z0-9][a-z0-9.\-]{0,63}$/).default('gemini-3.5-flash'),
   GEMINI_API_BASE_URL: z.string().url().default('https://generativelanguage.googleapis.com'),
   // Thinking tokens count against the output limit: with thinking on, a short answer can use most of a small limit and be cut off.
   // 0 switches thinking off, which suits these steps (structured answers the system checks anyway). Not every model allows 0.
   GEMINI_THINKING_BUDGET: blankIsUnset(z.coerce.number().int().min(0).max(24576).default(0)),
-  LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
-  LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
-  LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(1).max(65_536).default(4_096),
-  LLM_MAX_INPUT_CHARS: z.coerce.number().int().min(1).max(2_000_000).default(200_000),
-  LLM_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  LLM_TIMEOUT_MS: blankIsUnset(z.coerce.number().int().min(1_000).max(300_000).default(60_000)),
+  // The whole call, retries and waits included. One request is limited by LLM_TIMEOUT_MS.
+  LLM_TOTAL_TIMEOUT_MS: blankIsUnset(z.coerce.number().int().min(1_000).max(900_000).default(120_000)),
+  LLM_MAX_RETRIES: blankIsUnset(z.coerce.number().int().min(0).max(5).default(2)),
+  LLM_MAX_OUTPUT_TOKENS: blankIsUnset(z.coerce.number().int().min(1).max(65_536).default(4_096)),
+  LLM_MAX_INPUT_CHARS: blankIsUnset(z.coerce.number().int().min(1).max(2_000_000).default(200_000)),
+  LLM_MAX_CONCURRENCY: blankIsUnset(z.coerce.number().int().min(1).max(32).default(4)),
   // Most tokens (input and output) the process may spend per UTC day. 0 = no limit. Counted in memory: it starts again at 0 on restart.
-  LLM_DAILY_TOKEN_BUDGET: z.coerce.number().int().min(0).default(0),
+  LLM_DAILY_TOKEN_BUDGET: blankIsUnset(z.coerce.number().int().min(0).default(0)),
   JSON_BODY_LIMIT: z.string().default('50mb'),
   DATABASE_URL: z.string().min(1).default('postgresql://slr_writing:slr_writing@localhost:5433/slr_writing?schema=public'),
 });
@@ -70,11 +74,8 @@ export function parseEnv(source: NodeJS.ProcessEnv) {
     throw new Error('DEV_AUTH_ENABLED cannot be true while FIREBASE_PROJECT_ID is set; use one or the other');
   }
   // The key is sent to GEMINI_API_BASE_URL, so that address must be secure. Plain http is only for a server on this machine (tests).
-  const base = new URL(parsed.GEMINI_API_BASE_URL);
-  const local = base.hostname === 'localhost' || base.hostname === '127.0.0.1';
-  if (base.protocol !== 'https:' && !(local && parsed.NODE_ENV !== 'production')) {
-    throw new Error('GEMINI_API_BASE_URL must be an https address (plain http is only allowed for localhost outside production)');
-  }
+  const baseProblem = problemWithSecretBearingUrl(parsed.GEMINI_API_BASE_URL, { allowLocalHttp: parsed.NODE_ENV !== 'production' });
+  if (baseProblem) throw new Error(`GEMINI_API_BASE_URL is not acceptable: ${baseProblem}`);
   if (parsed.LLM_PROVIDER === 'gemini' && !parsed.GEMINI_API_KEY) {
     throw new Error('LLM_PROVIDER=gemini needs GEMINI_API_KEY');
   }

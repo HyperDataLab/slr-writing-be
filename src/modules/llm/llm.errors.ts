@@ -1,4 +1,5 @@
 import { AppError } from '../../shared/errors/app-error.js';
+import type { LlmUsage } from './llm.types.js';
 
 /**
  * Failures of the model, as errors this API can answer with. The messages are fixed text: nothing the model or its
@@ -43,11 +44,16 @@ const MESSAGE: Record<LlmErrorCode, string> = {
 };
 
 export class LlmError extends AppError {
+  /** True when the same request could succeed if sent again (a busy service, a timeout). */
+  readonly retryable: boolean;
+  /**
+   * Tokens the service charged for calls that ended in this error (an answer cut off, refused or of the wrong shape).
+   * Set by the provider, read by the guard so that failed calls still count against the budget.
+   */
+  usage?: LlmUsage;
+
   constructor(public readonly llmCode: LlmErrorCode, options: { retryable?: boolean } = {}) {
     super(MESSAGE[llmCode], STATUS[llmCode], llmCode);
     this.retryable = options.retryable ?? false;
   }
-
-  /** True when the same request could succeed if sent again (a busy service, a timeout). */
-  readonly retryable: boolean;
 }
