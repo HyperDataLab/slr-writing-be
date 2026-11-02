@@ -215,7 +215,7 @@ slr-writing-be/
 │     ├─ slr-client/slr-client.ts          ★ gọi slr-be bằng token người dùng
 │     ├─ auth/                             firebase-verifier.ts, auth.setup.ts (M1)
 │     ├─ methods/                          ★ M2: methods.types / -facts / -renderer / -grounding / .service / .routes
-│     ├─ journal-profiles/                 ★ M3: journal-profile.schema / default-profile / .service / .routes
+│     ├─ journal-profiles/                 ★ M3: journal-profile.schema / default-profile / .service / .routes (bộ sinh hợp lệ: shared/constants/generators.ts)
 │     └─ evidence | export | jobs | llm | verification/
 │                                          ← thư mục RỖNG, chỗ dành cho module sau
 └─ tests/
@@ -293,7 +293,7 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 |---|---|---|---|
 | GET | `/health` | Kiểm tra sống | 200 |
 | GET | `/journal-profiles` | Danh sách profile khung bài báo (hiện có `generic-imrad`, luôn chưa xác minh) | 200; 401 |
-| GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 404 `JOURNAL_PROFILE_NOT_FOUND` |
+| GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 401; 404 `JOURNAL_PROFILE_NOT_FOUND` |
 | POST | `/projects` | Tạo project `{name, slrProjectId}` | 201; 409 `PROJECT_EXISTS`; 400 `VALIDATION_ERROR` |
 | GET | `/projects` | Project của người gọi | 200 |
 | GET | `/projects/:projectId` | Xem project | 200; 404 `PROJECT_NOT_FOUND` |
@@ -591,11 +591,16 @@ Khung bài báo mặc định, **không phải chính sách của một tạp ch
 - **Quy tắc trong schema** (`journal-profile.schema.ts`, kiểm tra ngay khi server khởi động — profile vi phạm thì server không chạy):
   - profile `unverified` không được mang ngày xác minh, người xác minh hay nguồn chính sách, bắt buộc có `notice`, và số từ chỉ được là `suggested_default`;
   - profile `verified` bắt buộc có ngày, người xác minh, ít nhất một URL chính sách và tên tạp chí;
-  - khoá mục duy nhất, `order` liên tục từ 1, `min` không lớn hơn `max`, nguồn thuộc danh sách cho phép (`A1`, `A2`, `A7`, `A10`, `prisma_writing_export`, `rq_findings`, `other_sections`).
-- **API:** `GET /api/journal-profiles` và `GET /api/journal-profiles/:profileId` (cần đăng nhập; 404 `JOURNAL_PROFILE_NOT_FOUND`). Người gọi nhận **bản sao** nên không sửa được profile của request sau. Không có route ghi.
+  - khoá mục duy nhất; các mục **liệt kê đúng thứ tự** với `order` 1, 2, 3... không đứt quãng (để code đọc theo mảng không xếp ngược bản thảo); `min` không lớn hơn `max`; nguồn thuộc danh sách cho phép (`A1`, `A2`, `A7`, `A10`, `prisma_writing_export`, `rq_findings`, `other_sections`) và không lặp;
+  - URL nguồn chính sách và URL tạp chí chỉ nhận **https** trên tên miền công khai (từ chối `javascript:`, `data:`, `file:`, `http`, `localhost`, địa chỉ IP), tối đa 2048 ký tự, nguồn chính sách không lặp; ngày xác minh không được ở tương lai (cho lệch đồng hồ 5 phút);
+  - văn bản (tên, mục đích, người xác minh, thông báo) phải có chữ nhìn thấy được, không chỉ khoảng trắng hay ký tự zero-width;
+  - `generator` phải nằm trong `KNOWN_GENERATORS` (`src/shared/constants/generators.ts`), nên profile không hứa một cách viết mà hệ thống không có. Thêm bộ sinh mới thì thêm vào danh sách đó;
+  - giới hạn: tối đa 20 mục, `version` tối đa 1.000.000, `id` tối đa 64 ký tự.
+- **API:** `GET /api/journal-profiles` và `GET /api/journal-profiles/:profileId` (cần đăng nhập; 404 `JOURNAL_PROFILE_NOT_FOUND`). Người gọi nhận **bản sao**, và hằng số gốc được đóng băng sâu (`deepFreeze`), nên không ai sửa được profile mà request sau sẽ thấy. Không có route ghi.
 - **Khi chọn tạp chí cụ thể:** thêm một profile mới với `id` riêng vào `PROFILES` (`journal-profiles.service.ts`), điền `journal`, `verification` đầy đủ và `wordBudgetSource: 'journal_policy'`. **Không sửa** `generic-imrad` thành profile của tạp chí. Khi nội dung profile đổi thì tăng `version`.
 - **Dùng ở đâu tiếp theo:** M5 (dàn ý) lấy danh sách mục, thứ tự và ngân sách từ profile; bản thảo sẽ ghi `id` và `version` của profile đã dùng.
 - **Còn lại:** chưa lưu profile nào vào bản thảo (làm ở M5); chưa có bảng nếu sau này cần profile do người dùng tạo.
+- **Quyết định thiết kế đã biết:** profile `verified` vẫn được dùng `wordBudgetSource: 'suggested_default'` (tạp chí có thể không nêu giới hạn từ), và profile `unverified` vẫn được mang tên tạp chí cùng kiểu trích dẫn (bản nháp cho một nơi chưa kiểm tra chính sách), miễn là có `notice`.
 
 *Thiết kế ban đầu của M3 (để đối chiếu):*
 - Một **hằng số** IMRaD mặc định (Abstract, Introduction, Methods, Results, Discussion, Conclusion; phân bổ số từ), `verified_at = null`, `policy_source_urls = []`, giao diện/ API phải hiện "chưa xác minh với chính sách tạp chí". Chưa cần CRUD. Khi chọn tạp chí cụ thể mới thêm bảng và người chịu trách nhiệm.

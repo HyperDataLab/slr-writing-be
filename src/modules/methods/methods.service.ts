@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type SectionRevision } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
+import { METHODS_GENERATOR } from '../../shared/constants/generators.js';
 import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
 import { extractMethodsFacts } from './methods-facts.js';
 import { findUngroundedNumbers } from './methods-grounding.js';
@@ -8,7 +9,8 @@ import { renderMethods } from './methods-renderer.js';
 import type { Fact } from './methods.types.js';
 
 export const METHODS_SECTION = 'methods';
-export const METHODS_GENERATOR = 'methods-template@1';
+// Defined with the other generators, so a journal profile can only name one that exists. Re-exported for callers of this module.
+export { METHODS_GENERATOR };
 
 export interface MethodsWarning {
   code: string;

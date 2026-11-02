@@ -51,7 +51,7 @@ describe('the default profile', () => {
     expect(sources('methods')).toEqual(expect.arrayContaining(['A10', 'prisma_writing_export']));
     expect(sources('results')).toContain('A1');
     expect(sources('discussion')).toContain('A7');
-    expect(sources('abstract')).toEqual(['other_sections']);
+    expect(sources('abstract')).toEqual(['A10', 'other_sections']);
   });
 
   it('names the Methods generator that really exists, and no other section has one yet', () => {

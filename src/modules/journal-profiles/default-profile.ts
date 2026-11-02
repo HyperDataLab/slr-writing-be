@@ -1,3 +1,4 @@
+import { deepFreeze } from '../../shared/utils/deep-freeze.js';
 import { journalProfileSchema, type JournalProfile } from './journal-profile.schema.js';
 
 /**
@@ -21,7 +22,7 @@ const draft = {
   sections: [
     {
       key: 'abstract', title: 'Abstract', order: 1, required: true, wordBudget: { min: 150, max: 300 },
-      sources: ['other_sections'], generator: null,
+      sources: ['A10', 'other_sections'], generator: null,
       purpose: 'Summarise the review question, methods, main results and conclusion; written last from the other sections.',
     },
     {
@@ -41,16 +42,17 @@ const draft = {
     },
     {
       key: 'discussion', title: 'Discussion', order: 5, required: true, wordBudget: { min: 600, max: 1400 },
-      sources: ['A7', 'A1', 'rq_findings'], generator: null,
+      sources: ['A7', 'A1', 'A10', 'rq_findings'], generator: null,
       purpose: 'Interpret the results, show where studies agree or conflict, and state the limitations.',
     },
     {
       key: 'conclusion', title: 'Conclusion', order: 6, required: true, wordBudget: { min: 150, max: 400 },
-      sources: ['other_sections', 'rq_findings'], generator: null,
+      sources: ['A10', 'other_sections', 'rq_findings'], generator: null,
       purpose: 'Answer the research questions and say what follows from the review.',
     },
   ],
 };
 
 // Parsing at load time means a profile that breaks its own rules stops the server from starting.
-export const DEFAULT_JOURNAL_PROFILE: JournalProfile = journalProfileSchema.parse(draft);
+// Frozen, because the whole process shares this object: nothing may change it, only copies of it.
+export const DEFAULT_JOURNAL_PROFILE: JournalProfile = deepFreeze(journalProfileSchema.parse(draft));
