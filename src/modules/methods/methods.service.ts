@@ -9,6 +9,10 @@ import { renderMethods } from './methods-renderer.js';
 import type { Fact } from './methods.types.js';
 
 export const METHODS_SECTION = 'methods';
+
+// Writers of one snapshot queue on a lock, so a burst of requests waits longer than a single one: allow for it, both for
+// getting a connection (maxWait) and for the transaction as a whole (timeout).
+const TRANSACTION_OPTIONS = { timeout: 60_000, maxWait: 60_000 };
 // Defined with the other generators, so a journal profile can only name one that exists. Re-exported for callers of this module.
 export { METHODS_GENERATOR };
 
@@ -98,6 +102,15 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
   const warnings = warningsFor(facts, snapshot.issues);
   const contentHash = hashOf(draft.markdown);
 
+  // Fast path: the common repeated request finds the text unchanged, and needs neither the lock nor a transaction.
+  const knownSection = await prisma.manuscriptSection.findFirst({
+    where: { manuscript: { snapshotId: snapshot.id }, sectionKey: METHODS_SECTION }, select: { id: true },
+  });
+  if (knownSection) {
+    const known = await prisma.sectionRevision.findFirst({ where: { sectionId: knownSection.id }, orderBy: { version: 'desc' } });
+    if (known && known.contentHash === contentHash) return { revision: known, created: false };
+  }
+
   // Two requests can race to create the same manuscript, section or version (unique keys). The loser runs again: it then
   // sees the winner's version and either finds the same text (no new version) or writes the next version itself.
   for (let attempt = 1; ; attempt += 1) {
@@ -136,7 +149,7 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
         },
       });
       return { revision, created: true };
-    }, { timeout: 30_000 });
+    }, TRANSACTION_OPTIONS);
     } catch (error) {
       const raced = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
       if (!raced || attempt >= 5) throw error;

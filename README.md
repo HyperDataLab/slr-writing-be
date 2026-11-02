@@ -64,6 +64,8 @@ Prefix `/api`. Chi tiết trong Swagger. Mọi route (trừ `/api/health`) cần
 
 | Method | Đường dẫn | Mục đích |
 |---|---|---|
+| POST, GET, PUT | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint` | Dàn ý bản thảo: sinh bằng quy tắc, xem, sửa theo phiên bản |
+| POST | `.../manuscript/blueprint/approve`, `.../reject` | **H1**: chỉ OWNER của project SLR trên `slr-be` duyệt hoặc từ chối dàn ý |
 | GET | `/journal-profiles`, `/journal-profiles/:profileId` | Profile khung bài báo (hiện có `generic-imrad`, luôn ghi rõ chưa xác minh với tạp chí nào) |
 | POST, GET | `/projects` | Tạo, liệt kê dự án của người dùng |
 | GET | `/projects/:projectId` | Chi tiết một dự án (dự án của người khác trả 404) |

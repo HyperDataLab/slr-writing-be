@@ -27,6 +27,9 @@ const envSchema = z.object({
   FIREBASE_CHECK_REVOKED: booleanEnv(false),
   // When on, creating a project asks slr-be whether the caller belongs to the SLR project being linked.
   SLR_VERIFY_PROJECT_ACCESS: booleanEnv(true),
+  // H1, H2 and H3 are decided by the OWNER of the SLR project on slr-be. When on, each decision asks slr-be for the caller's role.
+  // Keep it on outside of tests: with it off, anyone who owns the writing project could approve.
+  REQUIRE_SLR_OWNER_FOR_APPROVAL: booleanEnv(true),
   // Importing a run posted by the client is not backed by slr-be. Off by default in production.
   ALLOW_MANUAL_SNAPSHOT_IMPORT: z.enum(['true', 'false']).optional().transform((value) => (value === undefined ? undefined : value === 'true')),
   FROM_SLR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
