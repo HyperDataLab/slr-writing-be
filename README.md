@@ -64,6 +64,7 @@ Prefix `/api`. Chi tiết trong Swagger. Mọi route (trừ `/api/health`) cần
 
 | Method | Đường dẫn | Mục đích |
 |---|---|---|
+| GET | `/journal-profiles`, `/journal-profiles/:profileId` | Profile khung bài báo (hiện có `generic-imrad`, luôn ghi rõ chưa xác minh với tạp chí nào) |
 | POST, GET | `/projects` | Tạo, liệt kê dự án của người dùng |
 | GET | `/projects/:projectId` | Chi tiết một dự án (dự án của người khác trả 404) |
 | POST | `/projects/:projectId/snapshots/validate` | Kiểm tra một run của `slr-be` có đủ điều kiện viết không, không lưu gì |

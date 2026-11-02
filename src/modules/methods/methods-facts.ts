@@ -1,4 +1,4 @@
-import { showsNothing } from './invisible-text.js';
+import { showsNothing } from '../../shared/utils/invisible-text.js';
 import type { Fact, FactItem, MethodsInput } from './methods.types.js';
 
 type Json = Record<string, unknown>;

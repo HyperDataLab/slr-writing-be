@@ -1,4 +1,4 @@
-import { toVisibleLine } from './invisible-text.js';
+import { toVisibleLine } from '../../shared/utils/invisible-text.js';
 import type { Fact, FactItem, MethodsDraft } from './methods.types.js';
 
 /**
