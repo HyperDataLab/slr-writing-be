@@ -156,6 +156,7 @@ flowchart TD
 | Kiểm chứng dữ liệu thật | (PR #12) Đã import thành công một run thật từ `slr-be`; fixture thật nằm ở `tests/fixtures/real/` |
 | Xác thực (M1) | Xác minh token Firebase, kiểm tra quyền khi liên kết project, tắt import tay ở production, rate limit `from-slr` (xem mục 11) |
 | Methods (M2) | Sinh phần Methods bằng mẫu cố định từ snapshot, 3 lớp: dữ kiện → câu chữ → kiểm tra số (xem M2 ở mục 15) |
+| Journal Profile (M3) | Khung bài báo mặc định `generic-imrad`, luôn "chưa xác minh", schema chặt chống trình bày gợi ý như chính sách (xem M3 ở mục 15) |
 | Kiểm thử | Hàng trăm test qua (chạy `npm test` để biết con số hiện tại), gồm các bộ QA độc lập do sub-agent viết trong `tests/qa/` |
 
 ### Trạng thái nhánh (lúc viết)
@@ -168,7 +169,7 @@ flowchart TD
 
 ### Chưa làm (thứ tự khuyến nghị ở [mục 15](#15-lộ-trình-các-module-tiếp-theo))
 
-Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H1–H3 · Journal Profile · `LLMProvider` · outline + H1 · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
+Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H1–H3 · `LLMProvider` · outline + H1 · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
 
 ---
 
@@ -214,7 +215,8 @@ slr-writing-be/
 │     ├─ slr-client/slr-client.ts          ★ gọi slr-be bằng token người dùng
 │     ├─ auth/                             firebase-verifier.ts, auth.setup.ts (M1)
 │     ├─ methods/                          ★ M2: methods.types / -facts / -renderer / -grounding / .service / .routes
-│     └─ evidence | export | jobs | journal-profiles | llm | verification/
+│     ├─ journal-profiles/                 ★ M3: journal-profile.schema / default-profile / .service / .routes
+│     └─ evidence | export | jobs | llm | verification/
 │                                          ← thư mục RỖNG, chỗ dành cho module sau
 └─ tests/
    ├─ fixtures/synthetic-run.ts            dữ liệu GIẢ (ghi rõ trong file)
@@ -290,6 +292,8 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | Method | Đường dẫn | Mô tả | Kết quả |
 |---|---|---|---|
 | GET | `/health` | Kiểm tra sống | 200 |
+| GET | `/journal-profiles` | Danh sách profile khung bài báo (hiện có `generic-imrad`, luôn chưa xác minh) | 200; 401 |
+| GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 404 `JOURNAL_PROFILE_NOT_FOUND` |
 | POST | `/projects` | Tạo project `{name, slrProjectId}` | 201; 409 `PROJECT_EXISTS`; 400 `VALIDATION_ERROR` |
 | GET | `/projects` | Project của người gọi | 200 |
 | GET | `/projects/:projectId` | Xem project | 200; 404 `PROJECT_NOT_FOUND` |
@@ -310,7 +314,7 @@ Mọi route cần xác thực. Project/snapshot của người khác luôn trả
 |---|---|
 | Xác thực | `UNAUTHORIZED` (401), `INVALID_TOKEN` (401) |
 | Đầu vào | `VALIDATION_ERROR`, `INVALID_JSON`, `PAYLOAD_TOO_LARGE` (413), `INVALID_RUN_ID`, `INVALID_SLR_PROJECT_ID`, `INVALID_IMPORT_INPUT`, `RUN_PROJECT_MISMATCH` (400) |
-| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429), `METHODS_INPUT_MISSING` (422), `METHODS_NOT_GENERATED` / `METHODS_REVISION_NOT_FOUND` (404), `INVALID_VERSION` (400), `METHODS_UNGROUNDED_NUMBER` (500, lỗi lập trình: văn bản có số không nằm trong dữ kiện) |
+| Nghiệp vụ | `PROJECT_EXISTS` (409), `PROJECT_NOT_FOUND`, `SNAPSHOT_NOT_FOUND` (404), `SNAPSHOT_NOT_READY` (422, `details` = báo cáo), `SLR_PROJECT_ACCESS_DENIED` (403, người gọi không đọc được SLR project trên `slr-be`; project không tồn tại cũng trả mã này), `MANUAL_IMPORT_DISABLED` (403), `RATE_LIMITED` (429), `JOURNAL_PROFILE_NOT_FOUND` (404), `METHODS_INPUT_MISSING` (422), `METHODS_NOT_GENERATED` / `METHODS_REVISION_NOT_FOUND` (404), `INVALID_VERSION` (400), `METHODS_UNGROUNDED_NUMBER` (500, lỗi lập trình: văn bản có số không nằm trong dữ kiện) |
 | Upstream `slr-be` | `SLR_AUTH_REJECTED` (401), `SLR_FORBIDDEN` (403), `SLR_NOT_FOUND` (404), `SLR_UPSTREAM_ERROR`, `SLR_INVALID_RESPONSE`, `SLR_RESPONSE_TOO_LARGE`, `SLR_UNREACHABLE` (502), `SLR_TIMEOUT` (504) |
 | Khác | `INTERNAL_SERVER_ERROR` (500) |
 
@@ -578,7 +582,22 @@ flowchart LR
 - **Test:** golden test với fixture thật; mọi số trong Markdown đều truy được về khoá nguồn; thiếu PRISMA export → có cảnh báo, không có số.
 - **Nghiệm thu:** sinh lại cùng snapshot cho ra cùng văn bản (xác định).
 
-### M3 — Journal Profile
+### M3 — Journal Profile — **đã code, chờ merge**
+
+Khung bài báo mặc định, **không phải chính sách của một tạp chí nào**. Là hằng số trong code (chưa có bảng, chưa có CRUD), nhưng có schema chặt để sau này thêm profile của tạp chí thật mà không thể vô tình trình bày gợi ý như chính sách.
+
+- **Profile `generic-imrad` (version 1):** 6 mục theo thứ tự: Abstract, Introduction, Methods, Results, Discussion, Conclusion. Mỗi mục có `key`, `order` (1 đến 6, không đứt quãng), `required`, `wordBudget` (min/max), `sources` (dữ liệu để viết mục đó, theo `docs/mvp-scope.md` mục 5), `generator` (bộ sinh đã có, hiện chỉ Methods: `methods-template@1`; mục khác `null`) và `purpose`.
+- **Luôn "chưa xác minh":** `verification = { status: 'unverified', verifiedAt: null, verifiedBy: null, policySourceUrls: [] }`, `wordBudgetSource = 'suggested_default'` (số từ là gợi ý của hệ thống, không phải giới hạn của tạp chí), `citationStyle = null`, và có `notice` hiện ở mọi nơi hiển thị profile.
+- **Quy tắc trong schema** (`journal-profile.schema.ts`, kiểm tra ngay khi server khởi động — profile vi phạm thì server không chạy):
+  - profile `unverified` không được mang ngày xác minh, người xác minh hay nguồn chính sách, bắt buộc có `notice`, và số từ chỉ được là `suggested_default`;
+  - profile `verified` bắt buộc có ngày, người xác minh, ít nhất một URL chính sách và tên tạp chí;
+  - khoá mục duy nhất, `order` liên tục từ 1, `min` không lớn hơn `max`, nguồn thuộc danh sách cho phép (`A1`, `A2`, `A7`, `A10`, `prisma_writing_export`, `rq_findings`, `other_sections`).
+- **API:** `GET /api/journal-profiles` và `GET /api/journal-profiles/:profileId` (cần đăng nhập; 404 `JOURNAL_PROFILE_NOT_FOUND`). Người gọi nhận **bản sao** nên không sửa được profile của request sau. Không có route ghi.
+- **Khi chọn tạp chí cụ thể:** thêm một profile mới với `id` riêng vào `PROFILES` (`journal-profiles.service.ts`), điền `journal`, `verification` đầy đủ và `wordBudgetSource: 'journal_policy'`. **Không sửa** `generic-imrad` thành profile của tạp chí. Khi nội dung profile đổi thì tăng `version`.
+- **Dùng ở đâu tiếp theo:** M5 (dàn ý) lấy danh sách mục, thứ tự và ngân sách từ profile; bản thảo sẽ ghi `id` và `version` của profile đã dùng.
+- **Còn lại:** chưa lưu profile nào vào bản thảo (làm ở M5); chưa có bảng nếu sau này cần profile do người dùng tạo.
+
+*Thiết kế ban đầu của M3 (để đối chiếu):*
 - Một **hằng số** IMRaD mặc định (Abstract, Introduction, Methods, Results, Discussion, Conclusion; phân bổ số từ), `verified_at = null`, `policy_source_urls = []`, giao diện/ API phải hiện "chưa xác minh với chính sách tạp chí". Chưa cần CRUD. Khi chọn tạp chí cụ thể mới thêm bảng và người chịu trách nhiệm.
 
 ### M4 — `LLMProvider`

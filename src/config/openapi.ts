@@ -15,6 +15,20 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Service is up' } },
       },
     },
+    '/api/journal-profiles': {
+      get: {
+        tags: ['Journal profiles'], summary: 'List the journal profiles',
+        description: 'A profile fixes the sections, their order, suggested word budgets and the data each section is written from. The default profile is generic and always marked unverified: it is not any journal policy.',
+        responses: { '200': { description: 'Profiles' }, '401': { description: 'Not authenticated' } },
+      },
+    },
+    '/api/journal-profiles/{profileId}': {
+      get: {
+        tags: ['Journal profiles'], summary: 'Get one journal profile',
+        parameters: [{ name: 'profileId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'The profile, including its verification status and notice' }, '401': { description: 'Not authenticated' }, '404': { description: 'JOURNAL_PROFILE_NOT_FOUND' } },
+      },
+    },
     '/api/projects': {
       post: {
         tags: ['Projects'],
