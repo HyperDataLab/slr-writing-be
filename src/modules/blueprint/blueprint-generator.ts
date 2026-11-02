@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { toVisibleLine } from '../../shared/utils/invisible-text.js';
 import type { BlueprintContent, BlueprintContext, BlueprintSection, BlueprintSubsection } from './blueprint.types.js';
 
 /**
@@ -10,16 +12,34 @@ import type { BlueprintContent, BlueprintContext, BlueprintSection, BlueprintSub
  * - Discussion gets the two subsections every systematic review needs: agreement and conflict, and limitations;
  * - each research question is covered by the Results subsections that answer it. A question no theme answers is left
  *   with no subsection and no reason, so the gap shows up and has to be dealt with before approval.
+ *
+ * What it makes has to be something the editor can save again, so titles are cleaned to fit the schema.
  */
 export const CLAIM_SUBSECTION_PREFIX = 'claim:';
+export const MAX_TITLE_LENGTH = 300;
+
+/** One visible line of at most MAX_TITLE_LENGTH characters; a theme with no usable title is named after its id. */
+export function titleOf(rawTitle: string, fallbackId: string): string {
+  const line = toVisibleLine(rawTitle).trim();
+  const title = line === '' ? `Theme ${toVisibleLine(fallbackId).trim() || 'without a name'}` : line;
+  return title.length <= MAX_TITLE_LENGTH ? title : `${title.slice(0, MAX_TITLE_LENGTH - 1)}…`;
+}
+
+const MAX_SUBSECTION_ID_LENGTH = 250;
+
+/** 'claim:<theme id>', or, when that is too long for the schema, 'claim:' and a short hash of the id: still unique and always the same. */
+export function subsectionIdOf(claimExternalId: string): string {
+  const plain = `${CLAIM_SUBSECTION_PREFIX}${claimExternalId}`;
+  return plain.length <= MAX_SUBSECTION_ID_LENGTH ? plain : `${CLAIM_SUBSECTION_PREFIX}sha256-${createHash('sha256').update(claimExternalId).digest('hex').slice(0, 40)}`;
+}
 
 export function generateBlueprint(context: BlueprintContext): BlueprintContent {
   const { profile, researchQuestions, claims } = context;
   const knownQuestions = new Set(researchQuestions.map((question) => question.externalId));
 
   const resultsSubsections: BlueprintSubsection[] = claims.map((claim) => ({
-    id: `${CLAIM_SUBSECTION_PREFIX}${claim.externalId}`,
-    title: claim.title,
+    id: subsectionIdOf(claim.externalId),
+    title: titleOf(claim.title, claim.externalId),
     purpose: null,
     claimIds: [claim.externalId],
     rqIds: claim.researchQuestionExternalId && knownQuestions.has(claim.researchQuestionExternalId) ? [claim.researchQuestionExternalId] : [],

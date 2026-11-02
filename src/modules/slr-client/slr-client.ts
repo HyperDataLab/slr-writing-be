@@ -153,7 +153,10 @@ export class SlrClient {
       }
       throw error;
     }
-    const roleText = typeof data === 'object' && data !== null ? (data as { roleText?: unknown }).roleText : undefined;
+    const answer = typeof data === 'object' && data !== null ? (data as { roleText?: unknown; id?: unknown }) : {};
+    // The answer has to be about the project that was asked for. A role in the answer for another project proves nothing.
+    if (answer.id !== slrProjectId) return null;
+    const roleText = answer.roleText;
     return roleText === 'OWNER' || roleText === 'LECTURER' || roleText === 'REVIEWER' ? roleText : null;
   }
 

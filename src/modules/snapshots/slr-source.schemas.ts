@@ -151,7 +151,8 @@ export type ArtifactTypeName = z.infer<typeof artifactType>;
 export function unwrapEnvelope(body: unknown): unknown {
   if (body && typeof body === 'object' && 'success' in body) {
     const envelope = body as { success?: unknown; data?: unknown };
-    if (envelope.success === false) throw new Error('slr-be returned an error envelope');
+    // Only a boolean true is success. "false", 0 or null next to some data must not read as success.
+    if (envelope.success !== true) throw new Error('slr-be returned an error envelope');
     if ('data' in envelope) return envelope.data;
   }
   return body;

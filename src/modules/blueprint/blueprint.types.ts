@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { showsNothing } from '../../shared/utils/invisible-text.js';
+import { findStorableProblem, hasUnstorableText } from '../../shared/utils/storable.js';
 import type { JournalProfile } from '../journal-profiles/journal-profile.schema.js';
 
 /**
@@ -12,7 +13,11 @@ import type { JournalProfile } from '../journal-profiles/journal-profile.schema.
  */
 
 const MAX_ID_LENGTH = 250;
-const visible = (max: number) => z.string().max(max).refine((value) => !showsNothing(value), 'Must contain visible text');
+export const MAX_SUBSECTIONS = 5_000;
+export const MAX_REFERENCES = 50_000;
+// Text the database can store (no NUL, no lone surrogate) and that shows something.
+const storable = (schema: z.ZodString) => schema.refine((value) => !hasUnstorableText(value), 'Contains a character that cannot be stored');
+const visible = (max: number) => storable(z.string().max(max)).refine((value) => !showsNothing(value), 'Must contain visible text');
 const reference = visible(MAX_ID_LENGTH);
 
 export const blueprintSubsectionSchema = z.object({
@@ -28,10 +33,10 @@ export const blueprintSubsectionSchema = z.object({
 
 export const blueprintSectionSchema = z.object({
   /** One of the keys of the journal profile. */
-  key: z.string().min(1).max(40),
+  key: storable(z.string().min(1).max(40)),
   include: z.boolean(),
   wordBudget: z.object({ min: z.number().int().positive().max(1_000_000), max: z.number().int().positive().max(1_000_000) }).strict(),
-  subsections: z.array(blueprintSubsectionSchema).max(1000),
+  subsections: z.array(blueprintSubsectionSchema).max(MAX_SUBSECTIONS),
 }).strict();
 
 export const blueprintCoverageSchema = z.object({
@@ -42,13 +47,34 @@ export const blueprintCoverageSchema = z.object({
   notApplicableReason: visible(1000).nullable(),
 }).strict();
 
-export const blueprintContentSchema = z.object({
-  profile: z.object({ id: z.string().min(1).max(64), version: z.number().int().positive().max(1_000_000) }).strict(),
+const blueprintContentShape = z.object({
+  profile: z.object({ id: storable(z.string().min(1).max(64)), version: z.number().int().positive().max(1_000_000) }).strict(),
   sections: z.array(blueprintSectionSchema).min(1).max(20),
   coverage: z.array(blueprintCoverageSchema).max(500),
-}).strict();
+}).strict().superRefine((content, ctx) => {
+  // The limits on each list are generous, but together they would allow a blueprint of millions of references, which
+  // every read has to check. These totals keep a blueprint to the size a person could have written.
+  const subsections = content.sections.flatMap((section) => section.subsections);
+  const references = subsections.reduce((sum, subsection) => sum + subsection.claimIds.length + subsection.rqIds.length, 0)
+    + content.coverage.reduce((sum, entry) => sum + entry.subsectionIds.length, 0);
+  if (subsections.length > MAX_SUBSECTIONS) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `A blueprint can have at most ${MAX_SUBSECTIONS} subsections` });
+  if (references > MAX_REFERENCES) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `A blueprint can have at most ${MAX_REFERENCES} references to themes, questions and subsections` });
+});
 
-export type BlueprintContent = z.infer<typeof blueprintContentSchema>;
+/**
+ * The whole blueprint. The first step only counts the values in the input and stops at the limit, so an input of a million
+ * references is turned away in time proportional to the limit; the field-by-field checks run only on input that passed it.
+ */
+export const MAX_CONTENT_NODES = 200_000;
+export const blueprintContentSchema = z.unknown()
+  .superRefine((value, ctx) => {
+    if (findStorableProblem(value, { maxDepth: 64, maxNodes: MAX_CONTENT_NODES }) !== null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The blueprint is too large, nested too deeply, or holds a character that cannot be stored' });
+    }
+  })
+  .pipe(blueprintContentShape);
+
+export type BlueprintContent = z.infer<typeof blueprintContentShape>;
 export type BlueprintSection = z.infer<typeof blueprintSectionSchema>;
 export type BlueprintSubsection = z.infer<typeof blueprintSubsectionSchema>;
 

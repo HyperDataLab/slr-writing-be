@@ -1,21 +1,18 @@
-import { Prisma, type BlueprintRevision, type Approval } from '../../generated/prisma/client.js';
+import type { Prisma, BlueprintRevision, Approval } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { AppError, BadRequestError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
 import { hashOfJson } from '../../shared/utils/stable-json.js';
 import { assertSlrOwner, latestDecision, statusOf, type ApprovalDecision, type ApprovalStatus } from '../approvals/approvals.service.js';
 import { getJournalProfile } from '../journal-profiles/journal-profiles.service.js';
+import { ensureManuscript, exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { generateBlueprint } from './blueprint-generator.js';
 import { hasBlockingIssue, validateBlueprint } from './blueprint-validator.js';
-import type { BlueprintContent, BlueprintContext, BlueprintIssue } from './blueprint.types.js';
+import { blueprintContentSchema, type BlueprintContent, type BlueprintContext, type BlueprintIssue } from './blueprint.types.js';
 
 export const BLUEPRINT_TARGET_KIND = 'blueprint_revision';
 export const DEFAULT_PROFILE_ID = 'generic-imrad';
 
 const json = (value: unknown) => value as Prisma.InputJsonValue;
-
-// Writers of one snapshot queue on a lock, so a burst of requests waits longer than a single one: allow for it, both for
-// getting a connection (maxWait) and for the transaction as a whole (timeout).
-const TRANSACTION_OPTIONS = { timeout: 60_000, maxWait: 60_000 };
 
 export interface BlueprintView {
   revision: BlueprintRevision;
@@ -64,34 +61,30 @@ async function issuesFor(projectId: string, snapshotId: string, content: Bluepri
   }
 }
 
-/** One writer at a time per snapshot, released when the transaction ends. */
-const lock = (tx: Prisma.TransactionClient, snapshotId: string) =>
-  tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`blueprint:${snapshotId}`}))`;
-
-const ensureManuscript = (tx: Prisma.TransactionClient, projectId: string, snapshotId: string, actor: string) =>
-  tx.manuscript.upsert({
-    where: { snapshotId },
-    create: { projectId, snapshotId, createdBy: actor },
-    update: {},
-  });
-
-const latestRevision = (tx: Prisma.TransactionClient, manuscriptId: string) =>
-  tx.blueprintRevision.findFirst({ where: { manuscriptId }, orderBy: { version: 'desc' } });
+const latestRevision = (client: Prisma.TransactionClient | typeof prisma, manuscriptId: string) =>
+  client.blueprintRevision.findFirst({ where: { manuscriptId }, orderBy: { version: 'desc' } });
 
 /** Creates the first blueprint from the profile and the snapshot. If one exists, it is returned untouched: edits are never overwritten. */
 export async function createBlueprint(params: { projectId: string; snapshotId: string; actor: string; profileId?: string }) {
   const { context, snapshotId } = await loadContext(params.projectId, params.snapshotId, params.profileId ?? DEFAULT_PROFILE_ID);
+
   // Fast path: once a blueprint exists, a repeated call changes nothing and needs neither the lock nor a transaction.
   const existingManuscript = await prisma.manuscript.findUnique({ where: { snapshotId } });
   const existingRevision = existingManuscript ? await latestRevision(prisma, existingManuscript.id) : null;
   if (existingRevision) return { revision: existingRevision, created: false };
 
   const content = generateBlueprint(context);
+  // What the generator makes must be something the editor can save again. If a snapshot has data the schema cannot hold
+  // (for example more than 1000 themes), say so now instead of leaving a blueprint nobody can edit.
+  const checked = blueprintContentSchema.safeParse(content);
+  if (!checked.success) {
+    throw new AppError('A blueprint cannot be made from this snapshot: it has more themes than a blueprint can hold, or a theme the schema rejects', 422, 'BLUEPRINT_NOT_GENERATABLE');
+  }
   const contentHash = hashOfJson(content);
 
-  const result = await prisma.$transaction(async (tx) => {
-    await lock(tx, snapshotId);
-    const manuscript = await ensureManuscript(tx, params.projectId, snapshotId, params.actor);
+  return exclusiveForSnapshot(snapshotId, () => prisma.$transaction(async (tx) => {
+    await takeSnapshotLock(tx, snapshotId);
+    const manuscript = await ensureManuscript(tx, { projectId: params.projectId, snapshotId, actor: params.actor });
     const existing = await latestRevision(tx, manuscript.id);
     if (existing) return { revision: existing, created: false };
 
@@ -109,9 +102,7 @@ export async function createBlueprint(params: { projectId: string; snapshotId: s
       },
     });
     return { revision, created: true };
-  }, TRANSACTION_OPTIONS);
-
-  return result;
+  }, WRITE_TRANSACTION_OPTIONS));
 }
 
 /**
@@ -128,8 +119,8 @@ export async function saveBlueprint(params: { projectId: string; snapshotId: str
   });
   const contentHash = hashOfJson(params.content);
 
-  return prisma.$transaction(async (tx) => {
-    await lock(tx, snapshotId);
+  return exclusiveForSnapshot(snapshotId, () => prisma.$transaction(async (tx) => {
+    await takeSnapshotLock(tx, snapshotId);
     const manuscript = await tx.manuscript.findUnique({ where: { snapshotId } });
     const latest = manuscript ? await latestRevision(tx, manuscript.id) : null;
     if (!manuscript || !latest) throw new NotFoundError('There is no blueprint for this snapshot yet', 'BLUEPRINT_NOT_FOUND');
@@ -152,7 +143,7 @@ export async function saveBlueprint(params: { projectId: string; snapshotId: str
       },
     });
     return { revision, created: true };
-  }, TRANSACTION_OPTIONS);
+  }, WRITE_TRANSACTION_OPTIONS));
 }
 
 async function viewOf(projectId: string, snapshotId: string, manuscriptId: string, revision: BlueprintRevision): Promise<BlueprintView> {
@@ -193,7 +184,12 @@ export async function getBlueprintRevision(projectId: string, snapshotId: string
  * - the role is asked of slr-be first, before anything is written;
  * - only the latest version can be decided (409 otherwise), because an approval of an old version approves nothing now;
  * - an approval needs a blueprint with no blocking issue (422 BLUEPRINT_NOT_APPROVABLE);
- * - deciding the same way twice records nothing new.
+ * - deciding the same way again, with the same note or none, records nothing new; a different note is a new decision.
+ *
+ * The issues are worked out before the transaction opens, because working them out reads the snapshot with its own
+ * connection; doing that while holding a transaction's connection starves the pool when several decisions arrive at once.
+ * The transaction then checks that the version it judged is still the latest, so a decision never lands on a version
+ * that was replaced in between.
  */
 export async function decideBlueprint(params: {
   projectId: string; snapshotId: string; slrProjectId: string; authorization: string | undefined;
@@ -203,41 +199,49 @@ export async function decideBlueprint(params: {
   const manuscript = await findManuscript(params.projectId, params.snapshotId);
   if (!manuscript) throw new NotFoundError('There is no blueprint for this snapshot yet', 'BLUEPRINT_NOT_FOUND');
 
-  return prisma.$transaction(async (tx) => {
-    await lock(tx, params.snapshotId);
-    const latest = await latestRevision(tx, manuscript.id);
-    if (!latest) throw new NotFoundError('There is no blueprint for this snapshot yet', 'BLUEPRINT_NOT_FOUND');
-    if (latest.version !== params.version) {
-      throw new ConflictError(`The blueprint is at version ${latest.version}, not ${params.version}. Only the latest version can be decided.`, 'STALE_BLUEPRINT');
+  return exclusiveForSnapshot(params.snapshotId, async () => {
+    const judged = await latestRevision(prisma, manuscript.id);
+    if (!judged) throw new NotFoundError('There is no blueprint for this snapshot yet', 'BLUEPRINT_NOT_FOUND');
+    if (judged.version !== params.version) {
+      throw new ConflictError(`The blueprint is at version ${judged.version}, not ${params.version}. Only the latest version can be decided.`, 'STALE_BLUEPRINT');
     }
-    const target = { manuscriptId: manuscript.id, stage: 'H1' as const, targetKind: BLUEPRINT_TARGET_KIND, targetId: latest.id };
-
     if (params.decision === 'APPROVED') {
-      const issues = await issuesFor(params.projectId, params.snapshotId, latest.content as BlueprintContent);
+      const issues = await issuesFor(params.projectId, params.snapshotId, judged.content as BlueprintContent);
       if (hasBlockingIssue(issues)) {
         throw new AppError('The blueprint has blocking issues and cannot be approved', 422, 'BLUEPRINT_NOT_APPROVABLE', true, { issues });
       }
     }
 
-    const previous = await latestDecision(tx, target);
-    if (previous && previous.decision === params.decision) return { approval: previous, created: false };
+    return prisma.$transaction(async (tx) => {
+      await takeSnapshotLock(tx, params.snapshotId);
+      const latest = await latestRevision(tx, manuscript.id);
+      if (!latest || latest.id !== judged.id) {
+        throw new ConflictError('The blueprint changed while it was being checked. Load the latest version and decide again.', 'STALE_BLUEPRINT');
+      }
+      const target = { manuscriptId: manuscript.id, stage: 'H1' as const, targetKind: BLUEPRINT_TARGET_KIND, targetId: latest.id };
 
-    const approval = await tx.approval.create({
-      data: {
-        ...target, targetHash: latest.contentHash, decision: params.decision, note: params.note, decidedBy: params.actor, slrRole,
-      },
-    });
-    await tx.provenanceEvent.create({
-      data: {
-        projectId: params.projectId, snapshotId: params.snapshotId, actor: params.actor, activity: `approval.H1.${params.decision.toLowerCase()}`,
-        method: 'owner-decision',
-        inputRefs: json({ revisionId: latest.id, version: latest.version, contentHash: latest.contentHash }),
-        outputRefs: json({ approvalId: approval.id, slrRole }),
-        notes: params.note,
-      },
-    });
-    return { approval, created: true };
-  }, TRANSACTION_OPTIONS);
+      const previous = await latestDecision(tx, target);
+      if (previous && previous.decision === params.decision && (params.note === null || previous.note === params.note)) {
+        return { approval: previous, created: false };
+      }
+
+      const approval = await tx.approval.create({
+        data: {
+          ...target, targetHash: latest.contentHash, decision: params.decision, note: params.note, decidedBy: params.actor, slrRole,
+        },
+      });
+      await tx.provenanceEvent.create({
+        data: {
+          projectId: params.projectId, snapshotId: params.snapshotId, actor: params.actor, activity: `approval.H1.${params.decision.toLowerCase()}`,
+          method: 'owner-decision',
+          inputRefs: json({ revisionId: latest.id, version: latest.version, contentHash: latest.contentHash }),
+          outputRefs: json({ approvalId: approval.id, slrRole }),
+          notes: params.note,
+        },
+      });
+      return { approval, created: true };
+    }, WRITE_TRANSACTION_OPTIONS);
+  });
 }
 
 /**
