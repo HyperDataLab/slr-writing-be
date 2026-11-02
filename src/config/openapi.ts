@@ -15,6 +15,13 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Service is up' } },
       },
     },
+    '/api/llm/status': {
+      get: {
+        tags: ['LLM'], summary: 'Whether a language model is ready, and which',
+        description: 'Returns {configured, provider, model}. Never returns the key. There is no route that sends free text to the model: only the steps of the writing workflow call it.',
+        responses: { '200': { description: 'The status' }, '401': { description: 'Not authenticated' } },
+      },
+    },
     '/api/journal-profiles': {
       get: {
         tags: ['Journal profiles'], summary: 'List the journal profiles',
@@ -86,6 +93,52 @@ export const openApiDocument: OpenAPIV3.Document = {
         tags: ['Manuscript'], summary: 'Latest version of Methods with the list of versions',
         parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Latest version and a list of versions without their text' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or METHODS_NOT_GENERATED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/blueprint': {
+      post: {
+        tags: ['Blueprint'], summary: 'Make the first blueprint (dàn ý) from the journal profile and the snapshot',
+        description: 'Fixed rules, no LLM: the sections of the profile, one Results subsection per theme, and the coverage of every research question. 201 when made, 200 when a blueprint already exists (it is never overwritten). Optional body: {profileId}.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'A blueprint already exists; the latest version is returned' }, '201': { description: 'Version 1 made' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or JOURNAL_PROFILE_NOT_FOUND' } },
+      },
+      get: {
+        tags: ['Blueprint'], summary: 'Latest version of the blueprint with its issues, approval state and list of versions',
+        description: 'issues lists what blocks or warns; approvable is true when nothing blocks. approval.status is PENDING, APPROVED or REJECTED for this version.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'The blueprint view' }, '401': { description: 'Not authenticated' }, '404': { description: 'BLUEPRINT_NOT_FOUND, or the project or snapshot was not found' } },
+      },
+      put: {
+        tags: ['Blueprint'], summary: 'Save an edited blueprint as the next version',
+        description: 'Body: {baseVersion, content}. A draft with problems is saved; the problems only block the approval. 201 for a new version, 200 when nothing changed, 409 STALE_BLUEPRINT when baseVersion is not the latest version.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['baseVersion','content'], properties: { baseVersion: { type: 'integer' }, content: { type: 'object' } } } } } },
+        responses: { '200': { description: 'Unchanged' }, '201': { description: 'New version' }, '400': { description: 'INVALID_BLUEPRINT: the body has the wrong shape or names an unknown profile' }, '401': { description: 'Not authenticated' }, '404': { description: 'BLUEPRINT_NOT_FOUND or the project or snapshot was not found' }, '409': { description: 'STALE_BLUEPRINT' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/blueprint/approve': {
+      post: {
+        tags: ['Blueprint'], summary: 'H1: approve the latest version of the blueprint',
+        description: 'Only the OWNER of the SLR project on slr-be may decide; the role is asked of slr-be with the caller token (REQUIRE_SLR_OWNER_FOR_APPROVAL). Needs a blueprint with no blocking issue. Body: {version, note?}. 201 when recorded, 200 when the same decision was already recorded.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already approved' }, '201': { description: 'Approval recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated, or SLR_AUTH_REJECTED' }, '403': { description: 'APPROVAL_REQUIRES_OWNER or SLR_PROJECT_ACCESS_DENIED' }, '404': { description: 'BLUEPRINT_NOT_FOUND or the project or snapshot was not found' }, '409': { description: 'STALE_BLUEPRINT: only the latest version can be decided' }, '422': { description: 'BLUEPRINT_NOT_APPROVABLE, with the issues in error.details' }, '502': { description: 'slr-be failed' }, '504': { description: 'SLR_TIMEOUT' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/blueprint/reject': {
+      post: {
+        tags: ['Blueprint'], summary: 'H1: reject the latest version of the blueprint',
+        description: 'Same rules as approve, and a note is required. A rejection also withdraws an earlier approval of the same version.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version','note'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already rejected' }, '201': { description: 'Rejection recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated, or SLR_AUTH_REJECTED' }, '403': { description: 'APPROVAL_REQUIRES_OWNER or SLR_PROJECT_ACCESS_DENIED' }, '404': { description: 'BLUEPRINT_NOT_FOUND or the project or snapshot was not found' }, '409': { description: 'STALE_BLUEPRINT' }, '502': { description: 'slr-be failed' }, '504': { description: 'SLR_TIMEOUT' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/blueprint/revisions/{version}': {
+      get: {
+        tags: ['Blueprint'], summary: 'One stored version of the blueprint, with its own approval state',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
+        responses: { '200': { description: 'The version' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'BLUEPRINT_REVISION_NOT_FOUND or the project or snapshot was not found' } },
       },
     },
     '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/methods/revisions/{version}': {

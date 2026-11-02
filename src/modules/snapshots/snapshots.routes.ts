@@ -4,6 +4,7 @@ import { env } from '../../config/env.js';
 import { guardIdParam } from '../../middleware/param-guard.middleware.js';
 import { createUserRateLimiter } from '../../middleware/rate-limit.middleware.js';
 import { BadRequestError, ForbiddenError } from '../../shared/errors/app-error.js';
+import blueprintRoutes from '../blueprint/blueprint.routes.js';
 import methodsRoutes from '../methods/methods.routes.js';
 import { getOwnedProject } from '../projects/projects.service.js';
 import { SlrClient, isValidRunId } from '../slr-client/slr-client.js';
@@ -79,5 +80,6 @@ router.get('/:snapshotId', async (req: Request<Params>, res, next) => {
 
 // Sections of the manuscript written from one snapshot.
 router.use('/:snapshotId/manuscript/methods', methodsRoutes);
+router.use('/:snapshotId/manuscript/blueprint', blueprintRoutes);
 
 export default router;

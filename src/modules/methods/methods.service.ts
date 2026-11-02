@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Prisma, type SectionRevision } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { METHODS_GENERATOR } from '../../shared/constants/generators.js';
+import { ensureManuscript, exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
 import { extractMethodsFacts } from './methods-facts.js';
 import { findUngroundedNumbers } from './methods-grounding.js';
@@ -9,6 +10,7 @@ import { renderMethods } from './methods-renderer.js';
 import type { Fact } from './methods.types.js';
 
 export const METHODS_SECTION = 'methods';
+
 // Defined with the other generators, so a journal profile can only name one that exists. Re-exported for callers of this module.
 export { METHODS_GENERATOR };
 
@@ -98,50 +100,45 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
   const warnings = warningsFor(facts, snapshot.issues);
   const contentHash = hashOf(draft.markdown);
 
-  // Two requests can race to create the same manuscript, section or version (unique keys). The loser runs again: it then
-  // sees the winner's version and either finds the same text (no new version) or writes the next version itself.
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-    return await prisma.$transaction(async (tx) => {
-      // One writer at a time per snapshot: the others wait here, then see the winner's version instead of racing it.
-      // The lock is released when the transaction ends. Without it, many requests at once keep colliding on the
-      // unique keys and some give up.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`methods:${snapshot.id}`}))`;
-      const manuscript = await tx.manuscript.upsert({
-        where: { snapshotId: snapshot.id },
-        create: { projectId: params.projectId, snapshotId: snapshot.id, createdBy: params.actor },
-        update: {},
-      });
-      const section = await tx.manuscriptSection.upsert({
-        where: { manuscriptId_sectionKey: { manuscriptId: manuscript.id, sectionKey: METHODS_SECTION } },
-        create: { manuscriptId: manuscript.id, sectionKey: METHODS_SECTION },
-        update: {},
-      });
-      const latest = await tx.sectionRevision.findFirst({ where: { sectionId: section.id }, orderBy: { version: 'desc' } });
-      if (latest && latest.contentHash === contentHash) return { revision: latest, created: false };
-
-      const revision = await tx.sectionRevision.create({
-        data: {
-          sectionId: section.id, version: (latest?.version ?? 0) + 1, markdown: draft.markdown, facts: json(facts),
-          warnings: json(warnings), generator: METHODS_GENERATOR, contentHash, createdBy: params.actor,
-        },
-      });
-      await tx.provenanceEvent.create({
-        data: {
-          projectId: params.projectId, snapshotId: snapshot.id, actor: params.actor, activity: 'manuscript.methods.generate',
-          method: METHODS_GENERATOR,
-          inputRefs: json({ snapshotId: snapshot.id, snapshotIntegrityHash: snapshot.integrityHash }),
-          outputRefs: json({ revisionId: revision.id, version: revision.version, contentHash }),
-          notes: `${warnings.length} warning(s)`,
-        },
-      });
-      return { revision, created: true };
-    }, { timeout: 30_000 });
-    } catch (error) {
-      const raced = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
-      if (!raced || attempt >= 5) throw error;
-    }
+  // Fast path: the common repeated request finds the text unchanged, and needs neither the lock nor a transaction.
+  const knownSection = await prisma.manuscriptSection.findFirst({
+    where: { manuscript: { snapshotId: snapshot.id }, sectionKey: METHODS_SECTION }, select: { id: true },
+  });
+  if (knownSection) {
+    const known = await prisma.sectionRevision.findFirst({ where: { sectionId: knownSection.id }, orderBy: { version: 'desc' } });
+    if (known && known.contentHash === contentHash) return { revision: known, created: false };
   }
+
+  // Writers of one snapshot (Methods, the blueprint, their approvals) take turns: first in memory, holding no connection,
+  // then on a database lock for other server instances. The second writer finds the first one's version and adds none.
+  return exclusiveForSnapshot(snapshot.id, () => prisma.$transaction(async (tx) => {
+    await takeSnapshotLock(tx, snapshot.id);
+    const manuscript = await ensureManuscript(tx, { projectId: params.projectId, snapshotId: snapshot.id, actor: params.actor });
+    const section = await tx.manuscriptSection.upsert({
+      where: { manuscriptId_sectionKey: { manuscriptId: manuscript.id, sectionKey: METHODS_SECTION } },
+      create: { manuscriptId: manuscript.id, sectionKey: METHODS_SECTION },
+      update: {},
+    });
+    const latest = await tx.sectionRevision.findFirst({ where: { sectionId: section.id }, orderBy: { version: 'desc' } });
+    if (latest && latest.contentHash === contentHash) return { revision: latest, created: false };
+
+    const revision = await tx.sectionRevision.create({
+      data: {
+        sectionId: section.id, version: (latest?.version ?? 0) + 1, markdown: draft.markdown, facts: json(facts),
+        warnings: json(warnings), generator: METHODS_GENERATOR, contentHash, createdBy: params.actor,
+      },
+    });
+    await tx.provenanceEvent.create({
+      data: {
+        projectId: params.projectId, snapshotId: snapshot.id, actor: params.actor, activity: 'manuscript.methods.generate',
+        method: METHODS_GENERATOR,
+        inputRefs: json({ snapshotId: snapshot.id, snapshotIntegrityHash: snapshot.integrityHash }),
+        outputRefs: json({ revisionId: revision.id, version: revision.version, contentHash }),
+        notes: `${warnings.length} warning(s)`,
+      },
+    });
+    return { revision, created: true };
+  }, WRITE_TRANSACTION_OPTIONS));
 }
 
 const revisionSummary = { id: true, version: true, generator: true, contentHash: true, createdBy: true, createdAt: true } as const;
