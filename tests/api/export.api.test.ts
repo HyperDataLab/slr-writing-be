@@ -365,8 +365,9 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     const first = res.body.data.lineage[0];
     expect(first.sectionKey).toBe('results');
     expect(first.evidence.length).toBeGreaterThan(0);
-    expect(first.evidence[0].quote).toBe('Copilot achieved high accuracy in code generation.');
-    expect(first.evidence[0].quoteHashVerified).toBe(true);
+    const copilotEv = first.evidence.find((e: any) => e.externalId === 'E-01') || first.evidence[0];
+    expect(copilotEv.quote).toBe('Copilot achieved high accuracy in code generation.');
+    expect(copilotEv.quoteHashVerified).toBe(true);
 
     // Filter by sectionKey
     const filteredRes = await request(app)

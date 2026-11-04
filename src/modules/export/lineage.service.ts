@@ -122,14 +122,16 @@ export async function buildManuscriptLineage(params: {
       markerRegex.lastIndex = 0;
       while ((match = markerRegex.exec(p.text)) !== null) {
         const marker = match[1]!;
-        if (marker.startsWith('E-')) {
-          usedEvidenceIds.add(marker.slice(2));
-        } else if (marker.startsWith('F:')) {
-          usedFindingIds.add(marker.slice(2));
-        } else if (evidenceMap.has(marker)) {
+        if (evidenceMap.has(marker)) {
           usedEvidenceIds.add(marker);
         } else if (findingMap.has(marker)) {
           usedFindingIds.add(marker);
+        } else if (marker.startsWith('E-')) {
+          usedEvidenceIds.add(marker);
+          if (evidenceMap.has(marker.slice(2))) usedEvidenceIds.add(marker.slice(2));
+        } else if (marker.startsWith('F:')) {
+          usedFindingIds.add(marker);
+          if (findingMap.has(marker.slice(2))) usedFindingIds.add(marker.slice(2));
         }
       }
 
@@ -182,6 +184,9 @@ export async function buildManuscriptLineage(params: {
           });
         }
       }
+
+      resolvedFindings.sort((a, b) => a.externalId.localeCompare(b.externalId));
+      resolvedEvidence.sort((a, b) => a.externalId.localeCompare(b.externalId));
 
       lineageItems.push({
         sectionKey: sec.sectionKey,
