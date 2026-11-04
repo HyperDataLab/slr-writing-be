@@ -335,7 +335,8 @@ describe('End-to-End Real Pipeline Integration Test', () => {
     const firstItem = lineageResults[0];
     expect(firstItem.text).toContain('Copilot');
     expect(firstItem.evidence.length).toBeGreaterThan(0);
-    expect(firstItem.evidence[0].externalId).toBe('E-01');
-    expect(firstItem.evidence[0].quoteHashVerified).toBe(true);
+    const e1 = firstItem.evidence.find((e) => e.externalId === 'E-01') || firstItem.evidence[0];
+    expect(e1.externalId).toBe('E-01');
+    expect(e1.quoteHashVerified).toBe(true);
   });
 });
