@@ -176,6 +176,53 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'The version view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'PARAGRAPH_PLANS_NOT_FOUND or project/snapshot not found' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/draft': {
+      post: {
+        tags: ['Drafting'], summary: 'Draft a section using LLM from READY_TO_DRAFT paragraph plans',
+        description: 'Requires approved blueprint (H1) and paragraph plans (M6). LLM is called with minimal evidence packs. 201 for new revision, 200 when unchanged.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Unchanged, existing latest version returned' }, '201': { description: 'Draft generated' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or PARAGRAPH_PLANS_NOT_FOUND' }, '422': { description: 'BLUEPRINT_NOT_APPROVED, NO_PLANS_FOR_SECTION, NO_READY_PARAGRAPH_PLANS, or LLM_HALLUCINATED_REFERENCE' }, '503': { description: 'LLM_NOT_CONFIGURED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}': {
+      get: {
+        tags: ['Drafting'], summary: 'Latest section draft with H2 approval state and version list',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'The section draft view' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' } },
+      },
+      put: {
+        tags: ['Drafting'], summary: 'Save a manual edit of the section draft as a new version',
+        description: 'Body: {baseVersion, markdown}. Creates next version and sets H2 approval back to PENDING. 201 for new version, 200 when unchanged, 409 STALE_REVISION.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['baseVersion','markdown'], properties: { baseVersion: { type: 'integer' }, markdown: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Unchanged' }, '201': { description: 'New version' }, '400': { description: 'INVALID_DRAFT_EDIT' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/approve': {
+      post: {
+        tags: ['Drafting'], summary: 'H2: OWNER approves the latest version of the section draft',
+        description: 'Only the OWNER of the SLR project on slr-be may decide. Body: {version, note?}. 201 when recorded, 200 when identical decision already recorded.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already approved' }, '201': { description: 'Approval recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/reject': {
+      post: {
+        tags: ['Drafting'], summary: 'H2: OWNER rejects the latest version of the section draft',
+        description: 'Only the OWNER of the SLR project on slr-be may decide. Note is required. Body: {version, note}.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version','note'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already rejected' }, '201': { description: 'Rejection recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/revisions/{version}': {
+      get: {
+        tags: ['Drafting'], summary: 'One stored version of the section draft',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
+        responses: { '200': { description: 'The section revision view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {
       get: {
         tags: ['Snapshots'], summary: 'Get a snapshot with readiness issues, row counts and artifact statuses',
