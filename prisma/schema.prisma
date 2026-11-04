@@ -304,6 +304,7 @@ model Manuscript {
   blueprints BlueprintRevision[]
   approvals      Approval[]
   paragraphPlans ParagraphPlanRevision[]
+  verificationReports VerificationReport[]
 
   @@unique([snapshotId])
 }
@@ -424,4 +425,27 @@ model ParagraphPlanRevision {
 
   @@unique([manuscriptId, version])
   @@index([manuscriptId, blueprintRevisionId])
+}
+
+/// Báo cáo kiểm định chất lượng bản thảo (Quality Gates G1-G7). Chỉ ghi thêm.
+model VerificationReport {
+  id           String     @id @default(uuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  version      Int
+  /// 'PASSED' | 'PASSED_WITH_WARNINGS' | 'FAILED'
+  status       String
+  /// CitationManifest JSON
+  manifest     Json
+  /// Record<GateId, QualityGateResult>
+  gates        Json
+  /// Danh sách ReviewIssue[]
+  issues       Json
+  /// Thống kê: passed, warnings, failed, needsReview
+  summary      Json
+  runBy        String
+  runAt        DateTime   @default(now())
+
+  @@unique([manuscriptId, version])
+  @@index([manuscriptId, status])
 }

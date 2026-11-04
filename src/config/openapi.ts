@@ -223,6 +223,35 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'The section revision view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification/run': {
+      post: {
+        tags: ['Verification'], summary: 'Execute Quality Gates G1-G7 and generate verification report revision',
+        description: 'Runs deterministic and LLM-assisted gates (G1-G7) against drafted sections. Idempotent: 201 for new revision, 200 when unchanged.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Verification report unchanged' }, '201': { description: 'New verification report created' }, '401': { description: 'Not authenticated' }, '404': { description: 'SNAPSHOT_NOT_FOUND or MANUSCRIPT_NOT_FOUND' }, '422': { description: 'BLUEPRINT_NOT_APPROVED or NO_DRAFTED_SECTIONS' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification': {
+      get: {
+        tags: ['Verification'], summary: 'Get latest verification report with gates and review issues',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Latest verification report view' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification/revisions/{version}': {
+      get: {
+        tags: ['Verification'], summary: 'Get a specific historical revision of the verification report',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Historical verification report view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/citation-manifest': {
+      get: {
+        tags: ['Verification'], summary: 'Get the extracted CitationManifest with resolved studies and anchors',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Citation manifest' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {
       get: {
         tags: ['Snapshots'], summary: 'Get a snapshot with readiness issues, row counts and artifact statuses',
