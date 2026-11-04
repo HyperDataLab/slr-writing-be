@@ -158,6 +158,10 @@ flowchart TD
 | Methods (M2) | Sinh phần Methods bằng mẫu cố định từ snapshot, 3 lớp: dữ kiện → câu chữ → kiểm tra số (xem M2 ở mục 15) |
 | LLM (M4) | Lớp gọi Gemini: kết quả có cấu trúc đã kiểm bằng schema, prompt coi văn bản ngoài là dữ liệu, giới hạn đầu vào/đầu ra/số lời gọi/ngân sách ngày; chưa bước nào dùng (xem M4 ở mục 15) |
 | Dàn ý + H1 (M5) | Sinh dàn ý bằng quy tắc từ profile và snapshot, người dùng sửa theo phiên bản, **OWNER của project SLR duyệt H1** (xem M5 ở mục 15) |
+| ParagraphPlan (M6) | Kế hoạch từng đoạn: rhetorical move, claim slot, liên kết finding và evidence pack tối thiểu, kiểm soát claim strength (xem M6 ở mục 15) |
+| Sinh văn bản + H2 (M7) | Sinh bản nháp section bằng LLM, đối soát registry-only citations, kiểm soát sửa đổi và **OWNER duyệt H2** (xem M7 ở mục 15) |
+| Verification + Gates (M8) | Trích xuất CitationManifest, audit tự động 7 Quality Gates (G1–G7), phát hiện số liệu không căn cứ và trích dẫn giả mạo (xem M8 ở mục 15) |
+| Export + H3 (M9) | **OWNER duyệt H3** bản cuối, cơ chế Fail-Closed chặn export khi có lỗi, xuất file nén PKZIP chuẩn chứa 7 file kèm reverse lineage graph (xem M9 ở mục 15) |
 | Journal Profile (M3) | Khung bài báo mặc định `generic-imrad`, luôn "chưa xác minh", schema chặt chống trình bày gợi ý như chính sách (xem M3 ở mục 15) |
 | Kiểm thử | Hàng trăm test qua (chạy `npm test` để biết con số hiện tại), gồm các bộ QA độc lập do sub-agent viết trong `tests/qa/` |
 
@@ -704,7 +708,7 @@ flowchart TD
 ### M8 — Citation manifest + Verification + Quality gates
 - `CitationManifest` tách marker khỏi văn xuôi; kiểm tra tồn tại trong registry. Gate G1–G7 (roadmap mục 7): mỗi gate trả `PASS | WARNING | FAIL | NEEDS_REVIEW | NOT_APPLICABLE | NOT_RUN` và **`NOT_RUN` không được coi là pass**. Có lớp tất định (ID, FK, quote khớp, đối soát số PRISMA) và lớp LLM hỗ trợ (evidence có ủng hộ claim không, có mạnh hơn nguồn không); LLM **không** là bằng chứng cuối. Sinh `ReviewIssue` có severity, đích, lý do, đề xuất; sửa có kiểm soát (`RevisionDiff`), claim đổi thì kiểm lại.
 
-### M9 — Export + H3
+### M9 — Export + H3 — **đã code, có test đầy đủ**
 - Chặn khi có FAIL critical, citation không tồn tại, PRISMA lệch, thiếu H3. Gói gồm: Markdown, citation manifest, báo cáo chất lượng, issue còn mở, lịch sử revision, lời khai sử dụng AI, metadata audit (snapshot + hash + profile + model config). **Truy ngược được một câu về `ParagraphPlan → Finding → Study → SourceAnchor`** bằng một truy vấn.
 
 ### M10 — Giao diện
