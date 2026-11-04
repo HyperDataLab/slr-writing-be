@@ -302,7 +302,8 @@ model Manuscript {
   createdAt  DateTime            @default(now())
   sections   ManuscriptSection[]
   blueprints BlueprintRevision[]
-  approvals  Approval[]
+  approvals      Approval[]
+  paragraphPlans ParagraphPlanRevision[]
 
   @@unique([snapshotId])
 }
@@ -355,6 +356,8 @@ model BlueprintRevision {
   createdBy      String
   createdAt      DateTime   @default(now())
 
+  paragraphPlans ParagraphPlanRevision[]
+
   @@unique([manuscriptId, version])
 }
 
@@ -400,4 +403,25 @@ model ProvenanceEvent {
   notes      String?
 
   @@index([projectId, createdAt])
+}
+
+/// Một phiên bản của kế hoạch từng đoạn (ParagraphPlan). Chỉ ghi thêm: sửa kế hoạch = phiên bản mới.
+model ParagraphPlanRevision {
+  id                  String            @id @default(uuid())
+  manuscriptId        String
+  manuscript          Manuscript        @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  version             Int
+  blueprintRevisionId String
+  blueprintRevision   BlueprintRevision @relation(fields: [blueprintRevisionId], references: [id], onDelete: Restrict)
+  content             Json
+  contentHash         String
+  /// 'generated' hoặc 'edited'
+  origin              String
+  totalParagraphs     Int
+  readyParagraphs     Int
+  createdBy           String
+  createdAt           DateTime          @default(now())
+
+  @@unique([manuscriptId, version])
+  @@index([manuscriptId, blueprintRevisionId])
 }
