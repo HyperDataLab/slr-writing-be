@@ -148,6 +148,34 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'The version' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'METHODS_REVISION_NOT_FOUND or the project or snapshot was not found' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/paragraph-plans': {
+      post: {
+        tags: ['Paragraph plans'], summary: 'Generate initial paragraph plans from the approved blueprint',
+        description: 'Requires an approved blueprint (H1). Generates structured plans for subsections mapping claims to snapshot findings and verbatim evidence. 201 when made, 200 when plans already exist.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Plans already exist; the latest version is returned' }, '201': { description: 'Version 1 made' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or MANUSCRIPT_NOT_FOUND' }, '422': { description: 'BLUEPRINT_NOT_APPROVED: the blueprint must be approved by the owner (H1) first' } },
+      },
+      get: {
+        tags: ['Paragraph plans'], summary: 'Latest version of the paragraph plans with issues, stats and list of versions',
+        description: 'Returns the plan items, readyToDraft flag, count of ready vs total paragraphs, and validation issues.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'The paragraph plans view' }, '401': { description: 'Not authenticated' }, '404': { description: 'PARAGRAPH_PLANS_NOT_FOUND or project/snapshot not found' } },
+      },
+      put: {
+        tags: ['Paragraph plans'], summary: 'Save an edited set of paragraph plans as the next version',
+        description: 'Body: {baseVersion, content}. 201 for a new version, 200 when nothing changed, 409 STALE_PLAN when baseVersion is not the latest version.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['baseVersion','content'], properties: { baseVersion: { type: 'integer' }, content: { type: 'object' } } } } } },
+        responses: { '200': { description: 'Unchanged' }, '201': { description: 'New version' }, '400': { description: 'INVALID_PARAGRAPH_PLANS: body has wrong shape or contains unstorable text' }, '401': { description: 'Not authenticated' }, '404': { description: 'PARAGRAPH_PLANS_NOT_FOUND or project/snapshot not found' }, '409': { description: 'STALE_PLAN' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/paragraph-plans/revisions/{version}': {
+      get: {
+        tags: ['Paragraph plans'], summary: 'One stored version of the paragraph plans',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
+        responses: { '200': { description: 'The version view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'PARAGRAPH_PLANS_NOT_FOUND or project/snapshot not found' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {
       get: {
         tags: ['Snapshots'], summary: 'Get a snapshot with readiness issues, row counts and artifact statuses',
