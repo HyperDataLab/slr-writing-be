@@ -252,6 +252,73 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Citation manifest' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/status': {
+      get: {
+        tags: ['Export & H3'], summary: 'Evaluate H3 approval status and export readiness',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'H3 readiness status view' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/approve': {
+      post: {
+        tags: ['Export & H3'], summary: 'Approve final manuscript (H3 checkpoint, OWNER only)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'H3 approved' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '422': { description: 'QUALITY_GATES_BLOCKED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/reject': {
+      post: {
+        tags: ['Export & H3'], summary: 'Reject final manuscript with note (H3 checkpoint, OWNER only)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['note'], properties: { note: { type: 'string', minLength: 3 } } } } } },
+        responses: { '200': { description: 'H3 rejected' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export': {
+      post: {
+        tags: ['Export & H3'], summary: 'Create an immutable submission package export (fail-closed)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Submission package exported successfully' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '422': { description: 'H3_APPROVAL_REQUIRED or MANUSCRIPT_MODIFIED_AFTER_H3_APPROVAL' } },
+      },
+      get: {
+        tags: ['Export & H3'], summary: 'Get the latest submission package export metadata',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Latest export package view' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/revisions/{version}': {
+      get: {
+        tags: ['Export & H3'], summary: 'Get a specific historical submission package export by version',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Historical export package view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/download': {
+      get: {
+        tags: ['Export & H3'], summary: 'Download submission package ZIP archive',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'version', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'PKZIP binary archive (application/zip)' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/lineage': {
+      get: {
+        tags: ['Export & H3'], summary: 'Reverse trace paragraph/sentence to source anchors',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'sectionKey', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'evidenceId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'findingId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'sentence', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'List of matching lineage items' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {
       get: {
         tags: ['Snapshots'], summary: 'Get a snapshot with readiness issues, row counts and artifact statuses',
