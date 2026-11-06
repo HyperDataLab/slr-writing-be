@@ -75,7 +75,8 @@ export function parseEnv(source: NodeJS.ProcessEnv) {
   }
   // firebase-admin switches to the Auth emulator when this variable is set, and the emulator issues tokens anyone can
   // forge. Outside development and test it would turn token checks into a formality, so refuse to start.
-  if ((source.FIREBASE_AUTH_EMULATOR_HOST ?? '').trim() !== '' && parsed.NODE_ENV !== 'development' && parsed.NODE_ENV !== 'test') {
+  // firebase-admin treats any non-empty value as 'use the emulator', even whitespace, so do not trim here.
+  if ((source.FIREBASE_AUTH_EMULATOR_HOST ?? '') !== '' && parsed.NODE_ENV !== 'development' && parsed.NODE_ENV !== 'test') {
     throw new Error('FIREBASE_AUTH_EMULATOR_HOST must not be set unless NODE_ENV is development or test');
   }
   // The key is sent to GEMINI_API_BASE_URL, so that address must be secure. Plain http is only for a server on this machine (tests).
