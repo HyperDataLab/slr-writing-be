@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.types.js';
@@ -49,8 +50,12 @@ export function computeRequiredSections(params: {
 }
 
 /** Required and omitted sections for the approved blueprint and the latest paragraph plans of a manuscript. */
-export async function loadRequiredSections(manuscriptId: string, blueprint: BlueprintContent): Promise<RequiredSections> {
-  const latestPlans = await prisma.paragraphPlanRevision.findFirst({
+export async function loadRequiredSections(
+  manuscriptId: string,
+  blueprint: BlueprintContent,
+  db: Prisma.TransactionClient = prisma,
+): Promise<RequiredSections> {
+  const latestPlans = await db.paragraphPlanRevision.findFirst({
     where: { manuscriptId },
     orderBy: { version: 'desc' },
   });

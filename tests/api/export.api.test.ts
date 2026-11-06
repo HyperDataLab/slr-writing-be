@@ -162,6 +162,36 @@ async function prepareReadyManuscript(uid = alice) {
 }
 
 describe('Module M9 — Submission Package Export & H3 Approval API', () => {
+  it('blocks export when the blueprint changes after H3 approval', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    expect((await request(app).post(`${base}/final/approve`).set(as(alice)).send({})).status).toBe(200);
+
+    const bp = await request(app).get(`${base}/blueprint`).set(as(alice));
+    const content = bp.body.data.revision.content;
+    const abstract = content.sections.find((sec: any) => sec.key === 'abstract');
+    abstract.include = !abstract.include;
+    const saved = await request(app)
+      .put(`${base}/blueprint`)
+      .set(as(alice))
+      .send({ baseVersion: bp.body.data.revision.version, content });
+    expect(saved.status).toBe(201);
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect((await request(app).post(`${base}/export`).set(as(alice)).send({})).status).toBe(422);
+  });
+
+  it('approving H3 twice is idempotent', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const first = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    const second = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.data.id).toBe(first.body.data.id);
+  });
+
   it('blocks H3 and export when a section is edited after verification ran (stale report)', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
     const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;

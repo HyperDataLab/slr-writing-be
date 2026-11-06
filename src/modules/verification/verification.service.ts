@@ -321,8 +321,11 @@ export async function runVerification(params: {
 /**
  * Builds the comprehensive user-facing VerificationReportView.
  */
-async function buildReportView(report: VerificationReport): Promise<VerificationReportView> {
-  const allRevisions = await prisma.verificationReport.findMany({
+async function buildReportView(
+  report: VerificationReport,
+  db: Prisma.TransactionClient = prisma,
+): Promise<VerificationReportView> {
+  const allRevisions = await db.verificationReport.findMany({
     where: { manuscriptId: report.manuscriptId },
     select: { version: true, status: true, runAt: true, runBy: true },
     orderBy: { version: 'desc' },
@@ -353,8 +356,9 @@ async function buildReportView(report: VerificationReport): Promise<Verification
 export async function getLatestVerificationReport(
   projectId: string,
   snapshotId: string,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<VerificationReportView> {
-  const manuscript = await prisma.manuscript.findFirst({
+  const manuscript = await db.manuscript.findFirst({
     where: { snapshotId, projectId },
   });
 
@@ -362,7 +366,7 @@ export async function getLatestVerificationReport(
     throw new NotFoundError('Manuscript not found for this snapshot', 'MANUSCRIPT_NOT_FOUND');
   }
 
-  const latest = await prisma.verificationReport.findFirst({
+  const latest = await db.verificationReport.findFirst({
     where: { manuscriptId: manuscript.id },
     orderBy: { version: 'desc' },
   });
@@ -374,7 +378,7 @@ export async function getLatestVerificationReport(
     );
   }
 
-  return buildReportView(latest);
+  return buildReportView(latest, db);
 }
 
 export async function getVerificationReportByVersion(
