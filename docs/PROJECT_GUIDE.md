@@ -311,6 +311,7 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | GET | `/projects/:projectId` | Xem project | 200; 404 `PROJECT_NOT_FOUND` |
 | POST | `/projects/:projectId/snapshots/validate` | Chạy thử readiness, **không lưu** | 200 báo cáo |
 | POST | `/projects/:projectId/snapshots` | Import tay (`{run, corpus, artifacts, supplements}`) → `sourceSystem='manual'` | 201 mới / 200 đã có / 422 |
+| GET | `/projects/:projectId/slr-runs` | Liệt kê run của project SLR đã liên kết (đọc từ `slr-be` bằng token người gọi, mới nhất trước): `runId`, `generatedAt`, `generatedBy`, `corpusHash`, `mvpArtifacts` (trạng thái duyệt A1/A2/A7/A10, `missing` nếu run không có), `importable` (A1 và A10, hai artifact bắt buộc của import, đã approved; chỉ để tham khảo, kiểm tra readiness khi import mới là chuẩn), `complete` (cả A1/A2/A7/A10 đã approved). Run có cấu trúc lạ bị bỏ qua (có log) chứ không làm hỏng cả danh sách; giới hạn 60 lần/phút/người, `snapshots` (đã import từ run này) | 200 / 404 / lỗi `SLR_*` |
 | POST | `/projects/:projectId/snapshots/from-slr` | Body `{runId}`; service tự lấy từ `slr-be` → `sourceSystem='slr-be'` | 201 / 200 / 422 / lỗi `SLR_*` |
 | GET | `/projects/:projectId/snapshots` | Danh sách (không payload) | 200 |
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Số đếm, trạng thái artifact, supplements (kind/hash), issues | 200; 404 `SNAPSHOT_NOT_FOUND` |
