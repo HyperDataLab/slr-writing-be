@@ -1597,6 +1597,7 @@ describe('Verification Schemas (Zod)', () => {
         id: 'rep-1',
         manuscriptId: 'ms-1',
         version: 1,
+        isCurrent: true,
         status: 'PASSED_WITH_WARNINGS',
         summary: {
           totalGates: 7,

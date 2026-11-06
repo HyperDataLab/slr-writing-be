@@ -192,6 +192,69 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(second.body.data.id).toBe(first.body.data.id);
   });
 
+  it('H2 approval of a hand-edited draft needs a current, non-failed verification (BE enforced)', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const view = await request(app).get(`${base}/sections/results`).set(as(alice));
+    const original: string = view.body.data.revision.markdown;
+    const textB = `${original}\n\nA plain closing sentence.`;
+
+    const put = (baseVersion: number, markdown: string) =>
+      request(app).put(`${base}/sections/results`).set(as(alice)).send({ baseVersion, markdown });
+    const approve = (version: number) =>
+      request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version });
+
+    expect((await put(1, textB)).status).toBe(201); // v2 = B
+    const blocked = await approve(2);
+    expect(blocked.status).toBe(422);
+    expect(blocked.body.error.code).toBe('REVERIFICATION_REQUIRED');
+
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+    expect(run.body.data.report.status).not.toBe('FAILED');
+    expect(run.body.data.report.isCurrent).toBe(true);
+    expect((await approve(2)).status).toBe(201);
+
+    // A -> B -> A: another edit makes the report stale, going back to the verified text makes it current again.
+    expect((await put(2, `${original}\n\nAnother sentence.`)).status).toBe(201); // v3 = C
+    const stale = await request(app).get(`${base}/verification`).set(as(alice));
+    expect(stale.body.data.isCurrent).toBe(false);
+    expect((await approve(3)).status).toBe(422);
+    expect((await put(3, textB)).status).toBe(201); // v4 = B again
+    const current = await request(app).get(`${base}/verification`).set(as(alice));
+    expect(current.body.data.isCurrent).toBe(true);
+    expect((await approve(4)).status).toBe(201);
+  });
+
+  it('refuses a failed verification as the basis for H2 approval of a hand edit', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    await request(app)
+      .put(`${base}/sections/results`)
+      .set(as(alice))
+      .send({ baseVersion: 1, markdown: 'Unverified claim, 99% of studies agree [E-99].' });
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+    expect(run.body.data.report.status).toBe('FAILED');
+    const res = await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 2 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('REVERIFICATION_REQUIRED');
+    // Reject is always allowed.
+    const reject = await request(app)
+      .post(`${base}/sections/results/reject`)
+      .set(as(alice))
+      .send({ version: 2, note: 'Not acceptable.' });
+    expect(reject.status).toBe(201);
+  });
+
+  it('does not allow hand-editing the Methods section', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const res = await request(app)
+      .put(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/methods`)
+      .set(as(alice))
+      .send({ baseVersion: 1, markdown: 'Edited methods text.' });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('SECTION_NOT_EDITABLE');
+  });
+
   it('blocks H3 and export when a section is edited after verification ran (stale report)', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
     const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;

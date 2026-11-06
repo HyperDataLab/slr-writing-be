@@ -1,4 +1,4 @@
-import { computeRequiredSections, fingerprintSections } from '../manuscripts/required-sections.js';
+import { computeRequiredSections, fingerprintSections, isVerificationCurrent } from '../manuscripts/required-sections.js';
 import type { Prisma, VerificationReport } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
@@ -349,6 +349,7 @@ async function buildReportView(
     issues: report.issues as any,
     runBy: report.runBy,
     runAt: report.runAt.toISOString(),
+    isCurrent: await isVerificationCurrent(report.manuscriptId, report.summary, db),
     versions,
   };
 }

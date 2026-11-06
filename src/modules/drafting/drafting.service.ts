@@ -7,6 +7,7 @@ import { assertSlrOwner, latestDecision, statusOf, type ApprovalDecision } from 
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import { getLlmProvider } from '../llm/llm.service.js';
+import { isVerificationCurrent } from '../manuscripts/required-sections.js';
 import { ensureManuscript, exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.types.js';
 import {
@@ -299,6 +300,11 @@ export async function saveSectionDraft(params: {
   baseVersion: number;
   markdown: string;
 }) {
+  // Methods comes from the fixed template (and its facts are checked against the snapshot); it is not hand-edited.
+  if (params.sectionKey === 'methods') {
+    throw new AppError('The Methods section is generated from a template and cannot be edited by hand', 422, 'SECTION_NOT_EDITABLE');
+  }
+
   const { snapshot, manuscript } = await loadDraftingContext(params.projectId, params.snapshotId);
   const generator = 'manual-edit';
   const contentHash = hashOf(params.markdown, generator);
@@ -423,6 +429,22 @@ export async function decideSectionRevision(params: {
 
       if (!latest || latest.id !== judged.id) {
         throw new ConflictError('The draft changed while being reviewed. Reload and decide again.', 'STALE_REVISION');
+      }
+
+      // A hand edit keeps the old evidence facts, so approving it needs a verification run that saw this exact text
+      // and did not fail. (Reject is always allowed.)
+      if (params.decision === 'APPROVED' && latest.generator === 'manual-edit') {
+        const report = await tx.verificationReport.findFirst({
+          where: { manuscriptId: manuscript.id },
+          orderBy: { version: 'desc' },
+        });
+        if (!report || report.status === 'FAILED' || !(await isVerificationCurrent(manuscript.id, report.summary, tx))) {
+          throw new AppError(
+            'This draft was edited by hand. Run verification again (it must not fail) before approving H2.',
+            422,
+            'REVERIFICATION_REQUIRED',
+          );
+        }
       }
 
       const target = {

@@ -24,6 +24,27 @@ export function fingerprintSections(sections: Array<{ sectionKey: string; conten
   return createHash('sha256').update(parts.join(';')).digest('hex');
 }
 
+/**
+ * Whether a verification report still describes the manuscript: the fingerprint it recorded equals the one of the
+ * latest section revisions now. Reports from before the fingerprint existed are never current (fail-closed).
+ */
+export async function isVerificationCurrent(
+  manuscriptId: string,
+  summary: unknown,
+  db: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const recorded = (summary as { verifiedContentHash?: unknown } | null)?.verifiedContentHash;
+  if (typeof recorded !== 'string') return false;
+  const sections = await db.manuscriptSection.findMany({
+    where: { manuscriptId },
+    include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
+  });
+  const current = fingerprintSections(
+    sections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+  );
+  return recorded === current;
+}
+
 export interface RequiredSections {
   required: string[];
   omitted: string[];
