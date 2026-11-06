@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Prisma, Approval } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
-import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
+import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
 import { assertSlrOwner, latestDecision, statusOf } from '../approvals/approvals.service.js';
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
@@ -87,13 +87,19 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
 
   let requiredSections: string[] = [];
   let omittedSections: string[] = [];
+  let undraftableSections = new Set<string>();
   if (approvedBlueprint) {
     const computed = await loadRequiredSections(manuscript.id, approvedBlueprint.content as unknown as BlueprintContent);
     requiredSections = computed.required;
     omittedSections = computed.omitted;
+    undraftableSections = new Set(computed.undraftable);
     const drafted = new Set(sections.filter((sec) => sec.revisions.length > 0).map((sec) => sec.sectionKey));
     for (const key of requiredSections) {
-      if (!drafted.has(key)) blockingReasons.push(`Required section '${key}' has not been drafted yet`);
+      if (!drafted.has(key)) blockingReasons.push(
+          undraftableSections.has(key)
+            ? `Required section '${key}' has not been drafted yet and no paragraph plan for it is ready to draft; resolve the missing evidence in the paragraph plans first`
+            : `Required section '${key}' has not been drafted yet`,
+        );
     }
   }
 
@@ -249,23 +255,25 @@ export async function decideH3(params: {
   const manuscript = await findManuscript(params.projectId, params.snapshotId);
 
   return exclusiveForSnapshot(params.snapshotId, async () => {
-    const status = await getH3Status({
-      projectId: params.projectId,
-      snapshotId: params.snapshotId,
-    });
-
-    if (params.decision === 'APPROVED' && !status.canApprove) {
-      throw new AppError(
-        `Cannot approve H3: ${status.blockingReasons.join('; ')}`,
-        422,
-        'QUALITY_GATES_BLOCKED',
-        true,
-        { blockingReasons: status.blockingReasons }
-      );
-    }
-
     return prisma.$transaction(async (tx) => {
+      // Take the lock first, then read the status: every writer of sections or reports takes the same lock, so what
+      // we check is what we record, even with several server instances.
       await takeSnapshotLock(tx, params.snapshotId);
+
+      const status = await getH3Status({
+        projectId: params.projectId,
+        snapshotId: params.snapshotId,
+      });
+
+      if (params.decision === 'APPROVED' && !status.canApprove) {
+        throw new AppError(
+          `Cannot approve H3: ${status.blockingReasons.join('; ')}`,
+          422,
+          'QUALITY_GATES_BLOCKED',
+          true,
+          { blockingReasons: status.blockingReasons }
+        );
+      }
 
       const target = {
         manuscriptId: manuscript.id,
@@ -464,6 +472,16 @@ export async function createExportPackage(params: {
     // 11. Save in Transaction
     return prisma.$transaction(async (tx) => {
       await takeSnapshotLock(tx, params.snapshotId);
+
+      // Everything above was read before the lock. If a section, report or decision moved since, do not export a
+      // package that no longer matches the approved manuscript.
+      const recheck = await getH3Status({ projectId: params.projectId, snapshotId: params.snapshotId });
+      if (recheck.h3Status !== 'APPROVED' || recheck.compositeTargetHash !== h3Status.compositeTargetHash) {
+        throw new ConflictError(
+          'The manuscript changed while the package was being assembled. Review H3 and export again.',
+          'EXPORT_INPUT_CHANGED',
+        );
+      }
 
       const created = await tx.exportPackage.create({
         data: {

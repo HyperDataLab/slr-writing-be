@@ -26,6 +26,8 @@ export function fingerprintSections(sections: Array<{ sectionKey: string; conten
 export interface RequiredSections {
   required: string[];
   omitted: string[];
+  /** Required sections (other than Methods) with no READY_TO_DRAFT plan: they cannot be drafted until evidence is resolved. */
+  undraftable: string[];
 }
 
 export function computeRequiredSections(params: {
@@ -42,7 +44,8 @@ export function computeRequiredSections(params: {
     else omitted.push(section.key);
   }
 
-  return { required: [...required], omitted };
+  const undraftable = [...required].filter((key) => key !== 'methods' && !planned.has(key));
+  return { required: [...required], omitted, undraftable };
 }
 
 /** Required and omitted sections for the approved blueprint and the latest paragraph plans of a manuscript. */

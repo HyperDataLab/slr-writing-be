@@ -37,6 +37,14 @@ describe('computeRequiredSections', () => {
     expect(omitted).toContain('discussion');
   });
 
+  it('reports required sections that have no ready plan as undraftable', () => {
+    const { undraftable } = computeRequiredSections({
+      blueprintSections,
+      plans: [{ sectionKey: 'introduction', status: 'READY_TO_DRAFT' }],
+    });
+    expect(undraftable).toEqual(['results']);
+  });
+
   it('ignores sections the blueprint excludes', () => {
     const { required, omitted } = computeRequiredSections({
       blueprintSections,

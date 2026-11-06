@@ -328,6 +328,10 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(pkg.version).toBe(1);
     expect(pkg.packageHash).toHaveLength(64);
     expect(pkg.manifest).toHaveLength(7);
+    // Profile-required sections the engine cannot draft (abstract, conclusion) are disclosed in the package.
+    expect(pkg.bundle.aiDisclosure).toContain('Sections Not Included');
+    expect(pkg.bundle.aiDisclosure).toContain('`abstract`');
+    expect(pkg.bundle.metadata.missingProfileSections).toEqual(expect.arrayContaining(['abstract', 'conclusion']));
     expect(pkg.manifest.map((m: any) => m.filename)).toEqual(
       expect.arrayContaining([
         'manuscript.md',
