@@ -4,6 +4,8 @@ import { BadRequestError } from '../../shared/errors/app-error.js';
 import type { AuthenticatedRequest } from '../../shared/types/common.types.js';
 import { findStorableProblem } from '../../shared/utils/storable.js';
 import { getOwnedProject } from '../projects/projects.service.js';
+import { generateSynthesisSection } from '../summary-sections/summary-sections.service.js';
+import { isSynthesisSection } from '../summary-sections/summary-sections.js';
 import { manualDraftEditSchema } from './drafting.types.js';
 import {
   decideSectionRevision,
@@ -49,12 +51,15 @@ function parseBody<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown
 // 201 when new revision created, 200 when identical text is already the latest.
 router.post('/draft', async (req: AuthenticatedRequest & Request<Params>, res, next) => {
   try {
-    const { revision, created } = await generateSectionDraft({
+    const target = {
       projectId: req.params.projectId,
       snapshotId: req.params.snapshotId,
       actor: req.user!.uid,
-      sectionKey: req.params.sectionKey,
-    });
+    };
+    // Abstract and Conclusion are written from the approved sections, not from paragraph plans.
+    const { revision, created } = isSynthesisSection(req.params.sectionKey)
+      ? await generateSynthesisSection({ ...target, sectionKey: req.params.sectionKey })
+      : await generateSectionDraft({ ...target, sectionKey: req.params.sectionKey });
     return res.status(created ? 201 : 200).json({ success: true, data: { revision, created } });
   } catch (error) {
     return next(error);

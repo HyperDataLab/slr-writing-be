@@ -3,6 +3,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.types.js';
+import { isSynthesisSection } from '../summary-sections/summary-sections.js';
 
 /**
  * Sections that must have a drafted (and, for H3, H2-approved) revision before the manuscript can be verified or
@@ -68,7 +69,13 @@ export async function isVerificationCurrent(
 }
 
 export interface RequiredSections {
+  /** Sections the engine drafts from the corpus or a template. Verification requires these. */
   required: string[];
+  /**
+   * Abstract and Conclusion the blueprint includes. They are written last from the approved sections, so verification
+   * does not wait for them, but H3 and export do.
+   */
+  synthesis: string[];
   omitted: string[];
   /** Required sections (other than Methods) with no READY_TO_DRAFT plan: they cannot be drafted until evidence is resolved. */
   undraftable: string[];
@@ -81,15 +88,20 @@ export function computeRequiredSections(params: {
   const planned = new Set(params.plans.filter((plan) => plan.status === 'READY_TO_DRAFT').map((plan) => plan.sectionKey));
   const required = new Set<string>(ALWAYS_REQUIRED_SECTIONS);
   const omitted: string[] = [];
+  const synthesis: string[] = [];
 
   for (const section of params.blueprintSections) {
     if (!section.include || required.has(section.key)) continue;
+    if (isSynthesisSection(section.key)) {
+      synthesis.push(section.key);
+      continue;
+    }
     if (planned.has(section.key)) required.add(section.key);
     else omitted.push(section.key);
   }
 
   const undraftable = [...required].filter((key) => key !== 'methods' && !planned.has(key));
-  return { required: [...required], omitted, undraftable };
+  return { required: [...required], synthesis, omitted, undraftable };
 }
 
 /** Required and omitted sections for the approved blueprint and the latest paragraph plans of a manuscript. */

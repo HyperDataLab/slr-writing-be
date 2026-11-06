@@ -25,7 +25,7 @@ describe('computeRequiredSections', () => {
       ],
     });
     expect(required).toEqual(['methods', 'results', 'introduction']);
-    expect(omitted).toEqual(['abstract', 'discussion']);
+    expect(omitted).toEqual(['discussion']);
   });
 
   it('does not require sections whose plans all lack evidence (the engine cannot draft them)', () => {
@@ -35,6 +35,22 @@ describe('computeRequiredSections', () => {
     });
     expect(required).not.toContain('discussion');
     expect(omitted).toContain('discussion');
+  });
+
+  it('treats an included Abstract and Conclusion as synthesis sections: required for H3, not for verification', () => {
+    const { required, synthesis, omitted } = computeRequiredSections({
+      blueprintSections: [...blueprintSections.slice(0, 5), { key: 'conclusion', include: true }],
+      plans: [{ sectionKey: 'introduction', status: 'READY_TO_DRAFT' }],
+    });
+    expect(synthesis).toEqual(['abstract', 'conclusion']);
+    expect(required).not.toContain('abstract');
+    expect(omitted).not.toContain('abstract');
+    expect(omitted).not.toContain('conclusion');
+  });
+
+  it('leaves out a synthesis section the blueprint excludes', () => {
+    const { synthesis } = computeRequiredSections({ blueprintSections, plans: [] });
+    expect(synthesis).toEqual(['abstract']);
   });
 
   it('reports required sections that have no ready plan as undraftable', () => {

@@ -10,7 +10,7 @@ export async function draftRequiredSections(
   headers: Record<string, string>,
   projectId: string,
   snapshotId: string,
-  options: { approve: boolean },
+  options: { approve: boolean; /** Also write and approve Abstract and Conclusion (default true when approving). */ synthesis?: boolean },
 ): Promise<string[]> {
   const base = `/api/projects/${projectId}/snapshots/${snapshotId}/manuscript`;
 
@@ -27,6 +27,12 @@ export async function draftRequiredSections(
   const keys = ['methods', ...drafted];
   if (options.approve) {
     for (const key of keys) await request(app).post(`${base}/sections/${key}/approve`).set(headers).send({ version: 1 });
+    // Abstract and Conclusion are written last, from the sections just approved (the test's model mock must answer them).
+    for (const key of options.synthesis === false ? [] : ['abstract', 'conclusion']) {
+      await request(app).post(`${base}/sections/${key}/draft`).set(headers).send({});
+      await request(app).post(`${base}/sections/${key}/approve`).set(headers).send({ version: 1 });
+      keys.push(key);
+    }
   }
   return keys;
 }

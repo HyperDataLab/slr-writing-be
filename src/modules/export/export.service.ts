@@ -100,7 +100,7 @@ export async function getH3Status(
   let undraftableSections = new Set<string>();
   if (approvedBlueprint) {
     const computed = await loadRequiredSections(manuscript.id, approvedBlueprint.content as unknown as BlueprintContent, db);
-    requiredSections = computed.required;
+    requiredSections = [...computed.required, ...computed.synthesis];
     omittedSections = computed.omitted;
     undraftableSections = new Set(computed.undraftable);
     const drafted = new Set(sections.filter((sec) => sec.revisions.length > 0).map((sec) => sec.sectionKey));
@@ -110,6 +110,17 @@ export async function getH3Status(
             ? `Required section '${key}' has not been drafted yet and no paragraph plan for it is ready to draft; resolve the missing evidence in the paragraph plans first`
             : `Required section '${key}' has not been drafted yet`,
         );
+    }
+  }
+
+  // Abstract and Conclusion are written from other sections; if one of those changed since, the text is out of date.
+  const latestHash = new Map(sections.filter((sec) => sec.revisions[0]).map((sec) => [sec.sectionKey, sec.revisions[0]!.contentHash]));
+  for (const sec of sections) {
+    const refs = (sec.revisions[0]?.facts as { sourceSections?: Array<{ sectionKey: string; contentHash: string }> } | undefined)?.sourceSections;
+    if (!Array.isArray(refs)) continue;
+    const changed = refs.filter((ref) => latestHash.get(ref.sectionKey) !== ref.contentHash).map((ref) => ref.sectionKey);
+    if (changed.length > 0) {
+      blockingReasons.push(`Section '${sec.sectionKey}' was written from earlier versions of: ${changed.join(', ')}. Draft it again`);
     }
   }
 
@@ -471,6 +482,7 @@ export async function createExportPackage(params: {
         name: profile.name,
         sections: profile.sections.map((sec) => ({
           key: sec.key,
+          title: sec.title,
           order: sec.order,
           required: sec.required,
         })),
@@ -704,6 +716,7 @@ export async function downloadExportZip(params: {
       name: profile.name,
       sections: profile.sections.map((sec) => ({
         key: sec.key,
+        title: sec.title,
         order: sec.order,
         required: sec.required,
       })),
