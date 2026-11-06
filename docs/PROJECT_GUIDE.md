@@ -2,7 +2,7 @@
 
 > **Cách dùng file này.** Gửi nguyên file cho một AI-Agent (hoặc thành viên mới) trước khi giao việc. Sau khi đọc, người đọc phải biết: hệ thống để làm gì, đã làm đến đâu, quy tắc nào không được vi phạm, code nằm ở đâu, cách chạy và test, và module tiếp theo cần làm gì.
 >
-> - Cập nhật lần cuối: **2026-10-30**. Khi code và file này lệch nhau thì **code đúng**; hãy sửa file này.
+> - Cập nhật lần cuối: **2026-11-06** (quy tắc section bắt buộc cho verification/H3, xem M8–M9). Khi code và file này lệch nhau thì **code đúng**; hãy sửa file này.
 > - Tài liệu nền: `docs/SLR_AI_Writing_Implementation_Roadmap.md` (thiết kế đầy đủ, nhiều phần là *đề xuất*), `docs/mvp-scope.md`, `docs/slr-be-survey.md`, `docs/adr/`.
 > - `spec.md` ở gốc repo là bản chụp cũ (lúc repo mới khởi tạo). **File này thay thế nó** cho mọi mục về trạng thái hiện tại.
 
@@ -175,7 +175,7 @@ flowchart TD
 
 ### Chưa làm (thứ tự khuyến nghị ở [mục 15](#15-lộ-trình-các-module-tiếp-theo))
 
-Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H2 và H3 (H1 đã có) · đề xuất dàn ý bằng LLM · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
+Thử xác thực với token Firebase thật · đề xuất dàn ý bằng LLM · generator cho Abstract/Conclusion · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
 
 ---
 
@@ -706,9 +706,11 @@ flowchart TD
 - Gửi cho LLM *evidence pack tối thiểu*, không gửi cả corpus. LLM trả `{text, usedEvidenceIds[]}`; hệ thống kiểm tra `usedEvidenceIds ⊆ pack`, **không** nhận reference mới. Mỗi đoạn có revision + lineage. **OWNER duyệt H2** trước khi sang kiểm chứng cuối.
 
 ### M8 — Citation manifest + Verification + Quality gates
+- **Không PASS rỗng (sửa 2026-11-06):** G7 chỉ PASS khi mọi section bắt buộc đã draft **và** mỗi RQ có ít nhất một đoạn đã draft được plan cho RQ đó (`ParagraphPlan.rqIds` ↔ `facts.paragraphs[].paragraphId`); nhắc tới mã RQ trong văn bản (ví dụ danh sách RQ ở Methods) không còn tính là phủ. G1 trả `NOT_APPLICABLE` khi bản thảo không có citation nào thay vì "PASS 0/0". Thiếu section bắt buộc nên verification báo `FAILED` và H3 bị chặn.
 - `CitationManifest` tách marker khỏi văn xuôi; kiểm tra tồn tại trong registry. Gate G1–G7 (roadmap mục 7): mỗi gate trả `PASS | WARNING | FAIL | NEEDS_REVIEW | NOT_APPLICABLE | NOT_RUN` và **`NOT_RUN` không được coi là pass**. Có lớp tất định (ID, FK, quote khớp, đối soát số PRISMA) và lớp LLM hỗ trợ (evidence có ủng hộ claim không, có mạnh hơn nguồn không); LLM **không** là bằng chứng cuối. Sinh `ReviewIssue` có severity, đích, lý do, đề xuất; sửa có kiểm soát (`RevisionDiff`), claim đổi thì kiểm lại.
 
 ### M9 — Export + H3 — **đã code, có test đầy đủ**
+- **Section bắt buộc (`modules/manuscripts/required-sections.ts`):** verification và H3 chỉ qua khi mọi section bắt buộc đã có bản nháp (H3 còn cần mỗi bản nháp đã duyệt H2). Bắt buộc = `methods` + `results` + mọi section blueprint đã bật mà có ít nhất một paragraph plan `READY_TO_DRAFT` (engine chỉ draft được các section đó). Section blueprint đã bật nhưng engine không draft được (không có plan, hoặc mọi plan `NEEDS_EVIDENCE`, ví dụ Abstract chưa có generator) **không chặn** mà được liệt kê trong `omittedSections` của `GET /final/status` (cùng `requiredSections`). Thiếu section bắt buộc → `blockingReasons` có "Required section 'x' has not been drafted yet".
 - Chặn khi có FAIL critical, citation không tồn tại, PRISMA lệch, thiếu H3. Gói gồm: Markdown, citation manifest, báo cáo chất lượng, issue còn mở, lịch sử revision, lời khai sử dụng AI, metadata audit (snapshot + hash + profile + model config). **Truy ngược được một câu về `ParagraphPlan → Finding → Study → SourceAnchor`** bằng một truy vấn.
 
 ### M10 — Giao diện

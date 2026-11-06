@@ -4,8 +4,10 @@ import { prisma } from '../../config/prisma.js';
 import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
 import { assertSlrOwner, latestDecision, statusOf } from '../approvals/approvals.service.js';
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
+import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import { SECTION_TARGET_KIND } from '../drafting/drafting.service.js';
 import { getJournalProfile } from '../journal-profiles/journal-profiles.service.js';
+import { loadRequiredSections } from '../manuscripts/required-sections.js';
 import { exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { getLatestVerificationReport } from '../verification/verification.service.js';
 import type { VerificationReportView } from '../verification/verification.types.js';
@@ -82,6 +84,18 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
       },
     },
   });
+
+  let requiredSections: string[] = [];
+  let omittedSections: string[] = [];
+  if (approvedBlueprint) {
+    const computed = await loadRequiredSections(manuscript.id, approvedBlueprint.content as unknown as BlueprintContent);
+    requiredSections = computed.required;
+    omittedSections = computed.omitted;
+    const drafted = new Set(sections.filter((sec) => sec.revisions.length > 0).map((sec) => sec.sectionKey));
+    for (const key of requiredSections) {
+      if (!drafted.has(key)) blockingReasons.push(`Required section '${key}' has not been drafted yet`);
+    }
+  }
 
   if (sections.length === 0) {
     blockingReasons.push('No manuscript sections have been generated or drafted yet');
@@ -184,6 +198,8 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
     canApprove,
     blockingReasons,
     compositeTargetHash,
+    requiredSections,
+    omittedSections,
     latestApproval: latestApproval
       ? {
           id: latestApproval.id,

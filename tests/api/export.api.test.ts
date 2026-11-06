@@ -7,6 +7,7 @@ import { prisma } from '../../src/config/prisma.js';
 import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
+import { draftRequiredSections } from '../helpers/draft-required.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -148,17 +149,8 @@ async function prepareReadyManuscript(uid = alice) {
     .set(as(uid))
     .send({});
 
-  // 3. Draft results section
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/draft`)
-    .set(as(uid))
-    .send({});
-
-  // 4. Approve results section draft (H2)
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/approve`)
-    .set(as(uid))
-    .send({ version: 1 });
+  // 3-4. Generate Methods, draft every draftable section and record H2 for each
+  await draftRequiredSections(app, as(uid), project.id, snapshot.id, { approve: true });
 
   // 5. Run verification (M8)
   await request(app)
@@ -170,6 +162,33 @@ async function prepareReadyManuscript(uid = alice) {
 }
 
 describe('Module M9 — Submission Package Export & H3 Approval API', () => {
+  it('blocks H3 and export while a required section is not drafted (only Methods approved)', async () => {
+    const { project, snapshot } = await setup();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    await request(app).post(`${base}/blueprint`).set(as(alice)).send({});
+    await request(app).post(`${base}/blueprint/approve`).set(as(alice)).send({ version: 1 });
+    await request(app).post(`${base}/paragraph-plans`).set(as(alice)).send({});
+    await request(app).post(`${base}/methods`).set(as(alice)).send({});
+    await request(app).post(`${base}/sections/methods/approve`).set(as(alice)).send({ version: 1 });
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+
+    // Verification must not pass with Results missing.
+    expect(run.body.data.report.status).toBe('FAILED');
+    expect(run.body.data.report.gates.G7.status).toBe('FAIL');
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect(status.body.data.requiredSections).toEqual(expect.arrayContaining(['methods', 'results']));
+    expect(status.body.data.blockingReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining("Required section 'results' has not been drafted yet")]),
+    );
+
+    const approve = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    expect(approve.status).toBe(422);
+    const exported = await request(app).post(`${base}/export`).set(as(alice)).send({});
+    expect(exported.status).toBe(422);
+  });
+
   it('GET /final/status returns ready status when all prerequisites are fulfilled', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
 
@@ -362,8 +381,9 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(res.body.data.count).toBeGreaterThan(0);
     expect(Array.isArray(res.body.data.lineage)).toBe(true);
 
-    const first = res.body.data.lineage[0];
-    expect(first.sectionKey).toBe('results');
+    // Every drafted section appears; the Results paragraphs carry the registered evidence.
+    const first = res.body.data.lineage.find((item: any) => item.sectionKey === 'results');
+    expect(first).toBeDefined();
     expect(first.evidence.length).toBeGreaterThan(0);
     const copilotEv = first.evidence.find((e: any) => e.externalId === 'E-01') || first.evidence[0];
     expect(copilotEv.quote).toBe('Copilot achieved high accuracy in code generation.');

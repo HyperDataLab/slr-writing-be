@@ -1,3 +1,4 @@
+import { computeRequiredSections } from '../manuscripts/required-sections.js';
 import type { Prisma, VerificationReport } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
@@ -177,12 +178,17 @@ export async function runVerification(params: {
         subsections: (s.subsections ?? []).map((sub) => ({ id: sub.id, title: sub.title })),
       })),
     },
+    requiredSections: computeRequiredSections({
+      blueprintSections: bpContent.sections ?? [],
+      plans: plansContent?.plans ?? [],
+    }).required,
     supplements: {
       prismaWritingExport,
     },
     paragraphPlans: plansContent?.plans.map((p) => ({
       id: p.id,
       sectionKey: p.sectionKey,
+      rqIds: p.rqIds,
       claimStrength: p.claimStrength,
       conditionsRequired: p.conditionsRequired,
     })),

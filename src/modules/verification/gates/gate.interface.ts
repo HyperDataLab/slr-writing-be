@@ -16,6 +16,8 @@ export interface GateEvaluationContext {
     researchQuestions: Array<{ rqId: string; code: string | null; question: string }>;
     sections: Array<{ key: string; include: boolean; subsections: Array<{ id: string; title: string }> }>;
   };
+  /** Sections that must be drafted before the manuscript can pass (see manuscripts/required-sections). */
+  requiredSections?: string[];
   supplements?: {
     prismaWritingExport?: {
       flow?: {
@@ -27,6 +29,7 @@ export interface GateEvaluationContext {
   paragraphPlans?: Array<{
     id: string;
     sectionKey: string;
+    rqIds?: string[];
     claimStrength: 'strong' | 'neutral' | 'qualified';
     conditionsRequired?: boolean;
   }>;

@@ -622,6 +622,18 @@ describe('Deterministic Gate Evaluators', () => {
   describe('G1CitationIntegrityEvaluator', () => {
     const evaluator = new G1CitationIntegrityEvaluator();
 
+    it('returns NOT_APPLICABLE instead of a vacuous PASS when the manuscript has no citations', async () => {
+      const context = createMockContext({
+        sections: [{ sectionKey: 'methods', version: 1, markdown: 'No citations here.', facts: [] }],
+      });
+
+      const { result, issues } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('NOT_APPLICABLE');
+      expect(result.details).toEqual({ totalCitations: 0, resolvedCitations: 0, unresolvedCount: 0 });
+      expect(issues).toHaveLength(0);
+    });
+
     it('returns PASS when unresolvedCitations is empty', async () => {
       const context = createMockContext();
       const { result, issues } = await evaluator.evaluate(context);
@@ -1142,7 +1154,7 @@ describe('Deterministic Gate Evaluators', () => {
       expect(issues).toHaveLength(0);
     });
 
-    it('returns PASS when research questions are covered by code or rqId in sections', async () => {
+    it('returns PASS when every research question has a drafted paragraph planned for it', async () => {
       const context = createMockContext({
         blueprint: {
           researchQuestions: [
@@ -1156,8 +1168,12 @@ describe('Deterministic Gate Evaluators', () => {
             sectionKey: 'results',
             version: 1,
             markdown: '## Section covering RQ-1 and also rq-2 in deep detail.',
-            facts: {},
+            facts: { paragraphs: [{ paragraphId: 'P-a' }, { paragraphId: 'P-b' }] },
           },
+        ],
+        paragraphPlans: [
+          { id: 'P-a', sectionKey: 'results', claimStrength: 'neutral', rqIds: ['rq-1'] },
+          { id: 'P-b', sectionKey: 'results', claimStrength: 'neutral', rqIds: ['rq-2'] },
         ],
       });
 
@@ -1167,10 +1183,11 @@ describe('Deterministic Gate Evaluators', () => {
       expect(result.status).toBe('PASS');
       expect(result.severity).toBe('BLOCKING');
       expect(result.issuesCount).toBe(0);
-      expect(result.message).toContain('All 2 research questions are addressed in manuscript sections');
+      expect(result.message).toContain('All 2 research questions are addressed by drafted paragraphs');
       expect(result.details).toEqual({
         totalRQs: 2,
         uncoveredRQs: 0,
+        missingSections: [],
       });
       expect(issues).toHaveLength(0);
     });
@@ -1193,10 +1210,11 @@ describe('Deterministic Gate Evaluators', () => {
       expect(result.status).toBe('FAIL');
       expect(result.severity).toBe('BLOCKING');
       expect(result.issuesCount).toBe(2);
-      expect(result.message).toContain('Uncovered research questions detected (2 missing)');
+      expect(result.message).toContain('2 research question(s) without a drafted paragraph');
       expect(result.details).toEqual({
         totalRQs: 2,
         uncoveredRQs: 2,
+        missingSections: [],
       });
 
       expect(issues).toHaveLength(2);
@@ -1204,10 +1222,54 @@ describe('Deterministic Gate Evaluators', () => {
       expect(issues[0].severity).toBe('BLOCKING');
       expect(issues[0].sectionKey).toBe('results');
       expect(issues[0].target).toBe('RQ-1');
-      expect(issues[0].message).toContain('Research question "RQ-1" has no drafted content');
+      expect(issues[0].message).toContain('Research question "RQ-1" has no drafted paragraph');
       expect(issues[0].suggestedRemedy).toContain('Accuracy of assistants?');
 
       expect(issues[1].target).toBe('RQ-2');
+    });
+
+    it('does not count RQ codes mentioned in prose (e.g. the Methods list) as coverage', async () => {
+      const context = createMockContext({
+        blueprint: { researchQuestions: [{ rqId: 'rq-1', code: 'RQ-1', question: 'Accuracy?' }], sections: [] },
+        sections: [{ sectionKey: 'methods', version: 1, markdown: '- RQ-1: Accuracy?', facts: [] }],
+        requiredSections: ['methods'],
+      });
+
+      const { result, issues } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('FAIL');
+      expect(issues).toHaveLength(1);
+      expect(issues[0].target).toBe('RQ-1');
+    });
+
+    it('fails with one BLOCKING issue per required section that has not been drafted', async () => {
+      const context = createMockContext({
+        blueprint: { researchQuestions: [{ rqId: 'rq-1', code: 'RQ-1', question: 'Accuracy?' }], sections: [] },
+        sections: [{ sectionKey: 'methods', version: 1, markdown: 'm', facts: [] }],
+        paragraphPlans: [],
+        requiredSections: ['methods', 'results', 'discussion'],
+      });
+
+      const { result, issues } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('FAIL');
+      expect(result.details).toMatchObject({ missingSections: ['results', 'discussion'] });
+      expect(issues.filter((i) => i.message.includes('has not been drafted')).map((i) => i.target)).toEqual([
+        'results',
+        'discussion',
+      ]);
+    });
+
+    it('fails on missing required sections even when the blueprint has no research questions', async () => {
+      const context = createMockContext({
+        blueprint: { researchQuestions: [], sections: [] },
+        sections: [],
+        requiredSections: ['results'],
+      });
+
+      const { result } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('FAIL');
     });
   });
 });

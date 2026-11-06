@@ -32,6 +32,8 @@ export const h3StatusSchema = z
         targetHash: z.string(),
       })
       .nullable(),
+    requiredSections: z.array(z.string()),
+    omittedSections: z.array(z.string()),
     verificationSummary: z
       .object({
         version: z.number().int(),
