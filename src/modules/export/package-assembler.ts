@@ -121,6 +121,11 @@ export function assembleSubmissionBundle(params: {
     }
   }
 
+  // Profile-required sections the engine could not produce are disclosed, never silently dropped.
+  const missingProfileSections = orderedSections
+    .filter((profSec) => profSec.required && !includedSectionKeys.has(profSec.key.toLowerCase()))
+    .map((profSec) => profSec.key);
+
   // Include any extra sections not in profile
   for (const s of params.sections) {
     if (!includedSectionKeys.has(s.sectionKey.toLowerCase()) && s.latestRevision.markdown.trim().length > 0) {
@@ -186,7 +191,10 @@ Artificial intelligence technologies **were not designated as authors** and do n
 2. **H2 Section Draft Approval:** Line-by-line review of drafted sections against evidentiary grounding.
 3. **H3 Final Submission Approval:** Exhaustive Quality Gate verification (G1–G7 audit) ensuring 100% registry-only citations, verbatim quote verification, PRISMA flow count reconciliation, and ungrounded number rejection.
 
-## 4. Source of Truth
+## 4. Sections Not Included
+${missingProfileSections.length > 0 ? `The journal profile requires the following sections, but this package does not contain them because the engine cannot draft them yet: ${missingProfileSections.map((k) => `\`${k}\``).join(', ')}. They must be written by the authors.` : 'All sections required by the journal profile are included.'}
+
+## 5. Source of Truth
 The definitive source of scientific truth remains the immutable snapshot \`${params.snapshot.id}\` (Corpus Hash: \`${params.snapshot.corpusHash}\`).
 `;
 
@@ -247,6 +255,7 @@ The definitive source of scientific truth remains the immutable snapshot \`${par
       version: params.journalProfile.version,
       name: params.journalProfile.name,
     },
+    missingProfileSections,
     verificationReportId: params.verificationReport.id,
     verificationStatus: params.verificationReport.status,
   };

@@ -8,6 +8,7 @@ import { prisma } from '../../src/config/prisma.js';
 import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
+import { draftRequiredSections } from '../helpers/draft-required.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -120,14 +121,7 @@ async function setupAndDraft(uid = alice) {
     .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/paragraph-plans`)
     .set(as(uid))
     .send({});
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/draft`)
-    .set(as(uid))
-    .send({});
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/approve`)
-    .set(as(uid))
-    .send({ version: 1 });
+  await draftRequiredSections(app, as(uid), project.id, snapshot.id, { approve: true });
 
   // 3. Verification run
   await request(app)

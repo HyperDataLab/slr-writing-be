@@ -26,6 +26,23 @@ export class G1CitationIntegrityEvaluator implements GateEvaluator {
       });
     }
 
+    // Nothing to resolve is not the same as everything resolved: do not report a vacuous PASS.
+    if (manifest.totalCitations === 0 && issues.length === 0) {
+      return {
+        result: {
+          gateId: 'G1',
+          name: this.name,
+          status: 'NOT_APPLICABLE',
+          severity: 'BLOCKING',
+          message: 'The manuscript contains no citation markers, so there is nothing to resolve against the registry.',
+          issuesCount: 0,
+          details: { totalCitations: 0, resolvedCitations: 0, unresolvedCount: 0 },
+          evaluatedAt: new Date().toISOString(),
+        },
+        issues,
+      };
+    }
+
     const isPass = issues.length === 0;
     const result: QualityGateResult = {
       gateId: 'G1',

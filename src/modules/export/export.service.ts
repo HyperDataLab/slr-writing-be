@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import type { Prisma, Approval } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
-import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
+import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
 import { assertSlrOwner, latestDecision, statusOf } from '../approvals/approvals.service.js';
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
+import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import { SECTION_TARGET_KIND } from '../drafting/drafting.service.js';
 import { getJournalProfile } from '../journal-profiles/journal-profiles.service.js';
+import { fingerprintSections, loadRequiredSections } from '../manuscripts/required-sections.js';
 import { exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { getLatestVerificationReport } from '../verification/verification.service.js';
 import type { VerificationReportView } from '../verification/verification.types.js';
@@ -20,8 +22,8 @@ function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
-async function findManuscript(projectId: string, snapshotId: string) {
-  const manuscript = await prisma.manuscript.findFirst({
+async function findManuscript(projectId: string, snapshotId: string, db: Prisma.TransactionClient = prisma) {
+  const manuscript = await db.manuscript.findFirst({
     where: { snapshotId, projectId },
   });
   if (!manuscript) {
@@ -36,9 +38,10 @@ async function findManuscript(projectId: string, snapshotId: string) {
  */
 export async function computeCompositeManuscriptHash(
   manuscriptId: string,
-  verificationReportId?: string
+  verificationReportId?: string,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<string> {
-  const sections = await prisma.manuscriptSection.findMany({
+  const sections = await db.manuscriptSection.findMany({
     where: { manuscriptId },
     include: {
       revisions: {
@@ -51,6 +54,12 @@ export async function computeCompositeManuscriptHash(
 
   const parts = sections.map((s) => `${s.sectionKey}:${s.revisions[0]?.contentHash || 'empty'}`);
 
+  // The export is laid out by the blueprint's journal profile, so a new blueprint revision or profile changes the hash.
+  const blueprint = await db.blueprintRevision.findFirst({ where: { manuscriptId }, orderBy: { version: 'desc' } });
+  if (blueprint) {
+    parts.push(`blueprint:${blueprint.id}:${blueprint.profileId}:${blueprint.profileVersion}`);
+  }
+
   if (verificationReportId) {
     parts.push(`verification:${verificationReportId}`);
   }
@@ -62,18 +71,21 @@ export async function computeCompositeManuscriptHash(
  * Evaluates the prerequisites and readiness for H3 approval and submission package export.
  * Fail-closed: returns detailed blocking reasons if anything is unapproved, failing, or missing.
  */
-export async function getH3Status(params: { projectId: string; snapshotId: string }): Promise<H3StatusView> {
-  const manuscript = await findManuscript(params.projectId, params.snapshotId);
+export async function getH3Status(
+  params: { projectId: string; snapshotId: string },
+  db: Prisma.TransactionClient = prisma,
+): Promise<H3StatusView> {
+  const manuscript = await findManuscript(params.projectId, params.snapshotId, db);
   const blockingReasons: string[] = [];
 
   // 1. Check Blueprint (H1)
-  const approvedBlueprint = await getApprovedBlueprint(manuscript.id);
+  const approvedBlueprint = await getApprovedBlueprint(manuscript.id, db);
   if (!approvedBlueprint) {
     blockingReasons.push('Manuscript blueprint (H1) has not been approved by the project Owner');
   }
 
   // 2. Check Section Drafts (H2)
-  const sections = await prisma.manuscriptSection.findMany({
+  const sections = await db.manuscriptSection.findMany({
     where: { manuscriptId: manuscript.id },
     include: {
       revisions: {
@@ -82,6 +94,24 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
       },
     },
   });
+
+  let requiredSections: string[] = [];
+  let omittedSections: string[] = [];
+  let undraftableSections = new Set<string>();
+  if (approvedBlueprint) {
+    const computed = await loadRequiredSections(manuscript.id, approvedBlueprint.content as unknown as BlueprintContent, db);
+    requiredSections = computed.required;
+    omittedSections = computed.omitted;
+    undraftableSections = new Set(computed.undraftable);
+    const drafted = new Set(sections.filter((sec) => sec.revisions.length > 0).map((sec) => sec.sectionKey));
+    for (const key of requiredSections) {
+      if (!drafted.has(key)) blockingReasons.push(
+          undraftableSections.has(key)
+            ? `Required section '${key}' has not been drafted yet and no paragraph plan for it is ready to draft; resolve the missing evidence in the paragraph plans first`
+            : `Required section '${key}' has not been drafted yet`,
+        );
+    }
+  }
 
   if (sections.length === 0) {
     blockingReasons.push('No manuscript sections have been generated or drafted yet');
@@ -92,7 +122,7 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
         blockingReasons.push(`Section '${sec.sectionKey}' has no revisions`);
         continue;
       }
-      const decision = await latestDecision(prisma, {
+      const decision = await latestDecision(db, {
         manuscriptId: manuscript.id,
         stage: 'H2',
         targetKind: SECTION_TARGET_KIND,
@@ -110,7 +140,7 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
   // 3. Check Verification Report (M8)
   let latestVerification: VerificationReportView | null = null;
   try {
-    latestVerification = await getLatestVerificationReport(params.projectId, params.snapshotId);
+    latestVerification = await getLatestVerificationReport(params.projectId, params.snapshotId, db);
   } catch (err) {
     if (!(err instanceof NotFoundError)) throw err;
   }
@@ -140,6 +170,17 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
       blockingIssuesCount,
     };
 
+    // A report only vouches for the section revisions it checked. Reports from before this check carry no
+    // fingerprint and are treated as stale (fail-closed).
+    const currentFingerprint = fingerprintSections(
+      sections.filter((sec) => sec.revisions[0]).map((sec) => ({ sectionKey: sec.sectionKey, contentHash: sec.revisions[0].contentHash })),
+    );
+    if ((latestVerification.summary as { verifiedContentHash?: string }).verifiedContentHash !== currentFingerprint) {
+      blockingReasons.push(
+        'The verification report is stale: sections changed after it was run. Run POST /verification/run again',
+      );
+    }
+
     if (latestVerification.status === 'FAILED') {
       blockingReasons.push('Latest verification report failed quality gate audits');
     }
@@ -151,7 +192,7 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
   }
 
   // 4. Compute composite hash and check existing H3 decision
-  const compositeTargetHash = await computeCompositeManuscriptHash(manuscript.id, latestVerification?.id);
+  const compositeTargetHash = await computeCompositeManuscriptHash(manuscript.id, latestVerification?.id, db);
 
   const target = {
     manuscriptId: manuscript.id,
@@ -160,7 +201,7 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
     targetId: manuscript.id,
   };
 
-  const latestApproval = await latestDecision(prisma, target);
+  const latestApproval = await latestDecision(db, target);
   let h3Status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING';
 
   if (latestApproval) {
@@ -184,6 +225,8 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
     canApprove,
     blockingReasons,
     compositeTargetHash,
+    requiredSections,
+    omittedSections,
     latestApproval: latestApproval
       ? {
           id: latestApproval.id,
@@ -222,23 +265,28 @@ export async function decideH3(params: {
   const manuscript = await findManuscript(params.projectId, params.snapshotId);
 
   return exclusiveForSnapshot(params.snapshotId, async () => {
-    const status = await getH3Status({
-      projectId: params.projectId,
-      snapshotId: params.snapshotId,
-    });
-
-    if (params.decision === 'APPROVED' && !status.canApprove) {
-      throw new AppError(
-        `Cannot approve H3: ${status.blockingReasons.join('; ')}`,
-        422,
-        'QUALITY_GATES_BLOCKED',
-        true,
-        { blockingReasons: status.blockingReasons }
-      );
-    }
-
     return prisma.$transaction(async (tx) => {
+      // Take the lock first, then read the status: every writer of sections or reports takes the same lock, so what
+      // we check is what we record, even with several server instances.
       await takeSnapshotLock(tx, params.snapshotId);
+
+      const status = await getH3Status(
+        {
+          projectId: params.projectId,
+          snapshotId: params.snapshotId,
+        },
+        tx,
+      );
+
+      if (params.decision === 'APPROVED' && !status.canApprove) {
+        throw new AppError(
+          `Cannot approve H3: ${status.blockingReasons.join('; ')}`,
+          422,
+          'QUALITY_GATES_BLOCKED',
+          true,
+          { blockingReasons: status.blockingReasons }
+        );
+      }
 
       const target = {
         manuscriptId: manuscript.id,
@@ -437,6 +485,21 @@ export async function createExportPackage(params: {
     // 11. Save in Transaction
     return prisma.$transaction(async (tx) => {
       await takeSnapshotLock(tx, params.snapshotId);
+
+      // Everything above was read before the lock. If a section, report or decision moved since, do not export a
+      // package that no longer matches the approved manuscript.
+      const recheck = await getH3Status({ projectId: params.projectId, snapshotId: params.snapshotId }, tx);
+      if (
+        recheck.h3Status !== 'APPROVED' ||
+        recheck.blockingReasons.length > 0 ||
+        recheck.compositeTargetHash !== h3Status.compositeTargetHash ||
+        recheck.latestApproval?.id !== h3Status.latestApproval?.id
+      ) {
+        throw new ConflictError(
+          'The manuscript changed while the package was being assembled. Review H3 and export again.',
+          'EXPORT_INPUT_CHANGED',
+        );
+      }
 
       const created = await tx.exportPackage.create({
         data: {

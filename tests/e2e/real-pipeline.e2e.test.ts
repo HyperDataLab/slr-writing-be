@@ -214,6 +214,29 @@ describe('End-to-End Real Pipeline Integration Test', () => {
     });
     expect(h2ResultsApproval.approval.decision).toBe('APPROVED');
 
+    // Every other section the engine can draft is required for verification and H3 as well.
+    const otherReadySections = [
+      ...new Set(
+        (planView.revision.content as unknown as { plans: Array<{ sectionKey: string; status: string }> }).plans
+          .filter((p) => p.status === 'READY_TO_DRAFT')
+          .map((p) => p.sectionKey),
+      ),
+    ].filter((key) => key !== 'results' && key !== 'methods');
+    for (const sectionKey of otherReadySections) {
+      const extraDraft = await generateSectionDraft({ projectId: project.id, snapshotId: snapshot.id, sectionKey, actor });
+      await decideSectionRevision({
+        projectId: project.id,
+        snapshotId: snapshot.id,
+        slrProjectId,
+        authorization: undefined,
+        actor,
+        sectionKey,
+        version: extraDraft.revision.version,
+        decision: 'APPROVED',
+        note: `H2 ${sectionKey} approved`,
+      });
+    }
+
     const h2MethodsApproval = await decideSectionRevision({
       projectId: project.id,
       snapshotId: snapshot.id,

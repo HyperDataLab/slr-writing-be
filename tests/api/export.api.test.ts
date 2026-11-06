@@ -7,6 +7,7 @@ import { prisma } from '../../src/config/prisma.js';
 import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
+import { draftRequiredSections } from '../helpers/draft-required.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -148,17 +149,8 @@ async function prepareReadyManuscript(uid = alice) {
     .set(as(uid))
     .send({});
 
-  // 3. Draft results section
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/draft`)
-    .set(as(uid))
-    .send({});
-
-  // 4. Approve results section draft (H2)
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/approve`)
-    .set(as(uid))
-    .send({ version: 1 });
+  // 3-4. Generate Methods, draft every draftable section and record H2 for each
+  await draftRequiredSections(app, as(uid), project.id, snapshot.id, { approve: true });
 
   // 5. Run verification (M8)
   await request(app)
@@ -170,6 +162,103 @@ async function prepareReadyManuscript(uid = alice) {
 }
 
 describe('Module M9 — Submission Package Export & H3 Approval API', () => {
+  it('blocks export when the blueprint changes after H3 approval', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    expect((await request(app).post(`${base}/final/approve`).set(as(alice)).send({})).status).toBe(200);
+
+    const bp = await request(app).get(`${base}/blueprint`).set(as(alice));
+    const content = bp.body.data.revision.content;
+    const abstract = content.sections.find((sec: any) => sec.key === 'abstract');
+    abstract.include = !abstract.include;
+    const saved = await request(app)
+      .put(`${base}/blueprint`)
+      .set(as(alice))
+      .send({ baseVersion: bp.body.data.revision.version, content });
+    expect(saved.status).toBe(201);
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect((await request(app).post(`${base}/export`).set(as(alice)).send({})).status).toBe(422);
+  });
+
+  it('approving H3 twice is idempotent', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const first = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    const second = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.data.id).toBe(first.body.data.id);
+  });
+
+  it('blocks H3 and export when a section is edited after verification ran (stale report)', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+
+    const edit = await request(app)
+      .put(`${base}/sections/results`)
+      .set(as(alice))
+      .send({ baseVersion: 1, markdown: 'Unverified claim, 99% of studies agree [E-99].' });
+    expect(edit.status).toBe(201);
+    await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 2 });
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect(status.body.data.blockingReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining('verification report is stale')]),
+    );
+    expect((await request(app).post(`${base}/final/approve`).set(as(alice)).send({})).status).toBe(422);
+    expect((await request(app).post(`${base}/export`).set(as(alice)).send({})).status).toBe(422);
+
+    // Re-running verification checks the edited text; it FAILs, so H3 stays blocked for a different reason.
+    const rerun = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+    expect(rerun.body.data.report.status).toBe('FAILED');
+    const after = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(after.body.data.canApprove).toBe(false);
+  });
+
+  it('does not let manually emptied sections pass verification', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const view = await request(app).get(`${base}/sections/results`).set(as(alice));
+    expect(view.status).toBe(200);
+    await request(app).put(`${base}/sections/results`).set(as(alice)).send({ baseVersion: 1, markdown: 'TODO' });
+    await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 2 });
+
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+
+    expect(run.body.data.report.gates.G7.status).toBe('FAIL');
+    expect(run.body.data.report.status).toBe('FAILED');
+  });
+
+  it('blocks H3 and export while a required section is not drafted (only Methods approved)', async () => {
+    const { project, snapshot } = await setup();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    await request(app).post(`${base}/blueprint`).set(as(alice)).send({});
+    await request(app).post(`${base}/blueprint/approve`).set(as(alice)).send({ version: 1 });
+    await request(app).post(`${base}/paragraph-plans`).set(as(alice)).send({});
+    await request(app).post(`${base}/methods`).set(as(alice)).send({});
+    await request(app).post(`${base}/sections/methods/approve`).set(as(alice)).send({ version: 1 });
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+
+    // Verification must not pass with Results missing.
+    expect(run.body.data.report.status).toBe('FAILED');
+    expect(run.body.data.report.gates.G7.status).toBe('FAIL');
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect(status.body.data.requiredSections).toEqual(expect.arrayContaining(['methods', 'results']));
+    expect(status.body.data.blockingReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining("Required section 'results' has not been drafted yet")]),
+    );
+
+    const approve = await request(app).post(`${base}/final/approve`).set(as(alice)).send({});
+    expect(approve.status).toBe(422);
+    const exported = await request(app).post(`${base}/export`).set(as(alice)).send({});
+    expect(exported.status).toBe(422);
+  });
+
   it('GET /final/status returns ready status when all prerequisites are fulfilled', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
 
@@ -269,6 +358,10 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(pkg.version).toBe(1);
     expect(pkg.packageHash).toHaveLength(64);
     expect(pkg.manifest).toHaveLength(7);
+    // Profile-required sections the engine cannot draft (abstract, conclusion) are disclosed in the package.
+    expect(pkg.bundle.aiDisclosure).toContain('Sections Not Included');
+    expect(pkg.bundle.aiDisclosure).toContain('`abstract`');
+    expect(pkg.bundle.metadata.missingProfileSections).toEqual(expect.arrayContaining(['abstract', 'conclusion']));
     expect(pkg.manifest.map((m: any) => m.filename)).toEqual(
       expect.arrayContaining([
         'manuscript.md',
@@ -362,8 +455,9 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(res.body.data.count).toBeGreaterThan(0);
     expect(Array.isArray(res.body.data.lineage)).toBe(true);
 
-    const first = res.body.data.lineage[0];
-    expect(first.sectionKey).toBe('results');
+    // Every drafted section appears; the Results paragraphs carry the registered evidence.
+    const first = res.body.data.lineage.find((item: any) => item.sectionKey === 'results');
+    expect(first).toBeDefined();
     expect(first.evidence.length).toBeGreaterThan(0);
     const copilotEv = first.evidence.find((e: any) => e.externalId === 'E-01') || first.evidence[0];
     expect(copilotEv.quote).toBe('Copilot achieved high accuracy in code generation.');

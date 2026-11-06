@@ -1,6 +1,7 @@
+import { computeRequiredSections, fingerprintSections } from '../manuscripts/required-sections.js';
 import type { Prisma, VerificationReport } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
-import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
+import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import { stableStringify } from '../../shared/utils/stable-json.js';
@@ -98,6 +99,9 @@ export async function runVerification(params: {
     },
   });
 
+  const verifiedContentHash = fingerprintSections(
+    sections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+  );
   const sectionRevisions: SectionRevisionForManifest[] = [];
   for (const s of sections) {
     const latestRev = s.revisions[0];
@@ -177,12 +181,18 @@ export async function runVerification(params: {
         subsections: (s.subsections ?? []).map((sub) => ({ id: sub.id, title: sub.title })),
       })),
     },
+    coverage: (bpContent.coverage ?? []).map((c) => ({ rqId: c.rqId, notApplicableReason: c.notApplicableReason })),
+    requiredSections: computeRequiredSections({
+      blueprintSections: bpContent.sections ?? [],
+      plans: plansContent?.plans ?? [],
+    }).required,
     supplements: {
       prismaWritingExport,
     },
     paragraphPlans: plansContent?.plans.map((p) => ({
       id: p.id,
       sectionKey: p.sectionKey,
+      rqIds: p.rqIds,
       claimStrength: p.claimStrength,
       conditionsRequired: p.conditionsRequired,
     })),
@@ -226,6 +236,7 @@ export async function runVerification(params: {
     notRun: notRunCount,
     blockingIssues: blockingIssuesCount,
     warningIssues: warningIssuesCount,
+    verifiedContentHash,
   };
 
   // 9. Concurrency lock and transactional write
@@ -233,6 +244,21 @@ export async function runVerification(params: {
     prisma.$transaction(async (tx) => {
       await takeSnapshotLock(tx, snapshotId);
       await ensureManuscript(tx, { projectId, snapshotId, actor });
+
+      // The sections were read before the (slow) gates ran; refuse to record a report for content that has moved on.
+      const currentSections = await tx.manuscriptSection.findMany({
+        where: { manuscriptId: manuscript.id },
+        include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
+      });
+      const currentHash = fingerprintSections(
+        currentSections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+      );
+      if (currentHash !== verifiedContentHash) {
+        throw new ConflictError(
+          'A section changed while verification was running. Run verification again.',
+          'VERIFICATION_INPUT_CHANGED',
+        );
+      }
 
       const latest = await tx.verificationReport.findFirst({
         where: { manuscriptId: manuscript.id },
@@ -295,8 +321,11 @@ export async function runVerification(params: {
 /**
  * Builds the comprehensive user-facing VerificationReportView.
  */
-async function buildReportView(report: VerificationReport): Promise<VerificationReportView> {
-  const allRevisions = await prisma.verificationReport.findMany({
+async function buildReportView(
+  report: VerificationReport,
+  db: Prisma.TransactionClient = prisma,
+): Promise<VerificationReportView> {
+  const allRevisions = await db.verificationReport.findMany({
     where: { manuscriptId: report.manuscriptId },
     select: { version: true, status: true, runAt: true, runBy: true },
     orderBy: { version: 'desc' },
@@ -327,8 +356,9 @@ async function buildReportView(report: VerificationReport): Promise<Verification
 export async function getLatestVerificationReport(
   projectId: string,
   snapshotId: string,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<VerificationReportView> {
-  const manuscript = await prisma.manuscript.findFirst({
+  const manuscript = await db.manuscript.findFirst({
     where: { snapshotId, projectId },
   });
 
@@ -336,7 +366,7 @@ export async function getLatestVerificationReport(
     throw new NotFoundError('Manuscript not found for this snapshot', 'MANUSCRIPT_NOT_FOUND');
   }
 
-  const latest = await prisma.verificationReport.findFirst({
+  const latest = await db.verificationReport.findFirst({
     where: { manuscriptId: manuscript.id },
     orderBy: { version: 'desc' },
   });
@@ -348,7 +378,7 @@ export async function getLatestVerificationReport(
     );
   }
 
-  return buildReportView(latest);
+  return buildReportView(latest, db);
 }
 
 export async function getVerificationReportByVersion(

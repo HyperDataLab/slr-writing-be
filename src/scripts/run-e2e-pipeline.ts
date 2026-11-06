@@ -53,7 +53,7 @@ async function runE2ePipeline() {
   console.log('       SLR AI Writing Engine — End-to-End Real Pipeline Demo    ');
   console.log('================================================================\n');
 
-  const actor = 'dev-e2e-leader';
+  const actor = 'dev_user';
   const tag = `e2e-${Date.now()}`;
   const slrProjectId = `proj_slr_real_${tag}`;
 
@@ -219,6 +219,30 @@ async function runE2ePipeline() {
     note: 'H2 Results section text approved after grounding verification.',
   });
   console.log(`  ✓ H2 Decision:        APPROVED for 'results' v${draftResult.revision.version}`);
+
+  // Every other section the engine can draft is required for verification and H3 as well.
+  const otherReadySections = [
+    ...new Set(
+      (planView.revision.content as unknown as { plans: Array<{ sectionKey: string; status: string }> }).plans
+        .filter((p) => p.status === 'READY_TO_DRAFT')
+        .map((p) => p.sectionKey),
+    ),
+  ].filter((key) => key !== 'results' && key !== 'methods');
+  for (const sectionKey of otherReadySections) {
+    const extraDraft = await generateSectionDraft({ projectId: project.id, snapshotId: snapshot.id, sectionKey, actor });
+    await decideSectionRevision({
+      projectId: project.id,
+      snapshotId: snapshot.id,
+      slrProjectId,
+      authorization: undefined,
+      actor,
+      sectionKey,
+      version: extraDraft.revision.version,
+      decision: 'APPROVED',
+      note: `H2 ${sectionKey} approved`,
+    });
+    console.log(`  ✓ H2 Decision:        APPROVED for '${sectionKey}' v${extraDraft.revision.version}`);
+  }
 
   const h2MethodsApproval = await decideSectionRevision({
     projectId: project.id,

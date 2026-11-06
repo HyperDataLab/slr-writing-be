@@ -7,6 +7,7 @@ import { prisma } from '../../src/config/prisma.js';
 import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
+import { draftRequiredSections } from '../helpers/draft-required.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -150,11 +151,8 @@ async function readyForVerification(uid = alice) {
     .set(as(uid))
     .send({});
 
-  // 3. Draft results section
-  await request(app)
-    .post(`/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript/sections/results/draft`)
-    .set(as(uid))
-    .send({});
+  // 3. Generate Methods and draft every draftable section
+  await draftRequiredSections(app, as(uid), project.id, snapshot.id, { approve: false });
 
   return { project, snapshot, slrProjectId };
 }
