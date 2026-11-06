@@ -53,7 +53,7 @@ async function runE2ePipeline() {
   console.log('       SLR AI Writing Engine — End-to-End Real Pipeline Demo    ');
   console.log('================================================================\n');
 
-  const actor = 'dev-e2e-leader';
+  const actor = 'dev_user';
   const tag = `e2e-${Date.now()}`;
   const slrProjectId = `proj_slr_real_${tag}`;
 
