@@ -173,7 +173,9 @@ export async function getH3Status(
     // A report only vouches for the section revisions it checked. Reports from before this check carry no
     // fingerprint and are treated as stale (fail-closed).
     const currentFingerprint = fingerprintSections(
-      sections.filter((sec) => sec.revisions[0]).map((sec) => ({ sectionKey: sec.sectionKey, contentHash: sec.revisions[0].contentHash })),
+      sections
+        .filter((sec) => sec.revisions[0])
+        .map((sec) => ({ sectionKey: sec.sectionKey, contentHash: sec.revisions[0].contentHash, facts: sec.revisions[0].facts })),
     );
     if ((latestVerification.summary as { verifiedContentHash?: string }).verifiedContentHash !== currentFingerprint) {
       blockingReasons.push(

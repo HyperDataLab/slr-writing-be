@@ -225,6 +225,44 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect((await approve(4)).status).toBe(201);
   });
 
+  it('a report does not stay current when the same text comes back with different facts', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const view = await request(app).get(`${base}/sections/results`).set(as(alice));
+    const original: string = view.body.data.revision.markdown;
+    const textB = `${original}\n\nA plain closing sentence.`;
+    const put = (baseVersion: number, markdown: string) =>
+      request(app).put(`${base}/sections/results`).set(as(alice)).send({ baseVersion, markdown });
+
+    expect((await put(1, textB)).status).toBe(201); // v2 = B (facts F1)
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+    expect(run.body.data.report.isCurrent).toBe(true);
+
+    // v3: an LLM-style revision with different facts (inserted directly; the LLM endpoint is not needed here).
+    const section = await prisma.manuscriptSection.findFirstOrThrow({
+      where: { manuscript: { snapshotId: snapshot.id }, sectionKey: 'results' },
+    });
+    await prisma.sectionRevision.create({
+      data: {
+        sectionId: section.id,
+        version: 3,
+        markdown: original,
+        facts: { paragraphs: [] },
+        warnings: [],
+        generator: 'llm-draft@1',
+        contentHash: 'sha256:other-facts-draft',
+        createdBy: alice,
+      },
+    });
+    expect((await put(3, textB)).status).toBe(201); // v4 = B again, copying the new facts
+
+    const after = await request(app).get(`${base}/verification`).set(as(alice));
+    expect(after.body.data.isCurrent).toBe(false);
+    const res = await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 4 });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('REVERIFICATION_REQUIRED');
+  });
+
   it('refuses a failed verification as the basis for H2 approval of a hand edit', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
     const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;

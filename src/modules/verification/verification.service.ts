@@ -100,7 +100,9 @@ export async function runVerification(params: {
   });
 
   const verifiedContentHash = fingerprintSections(
-    sections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+    sections
+      .filter((s) => s.revisions[0])
+      .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
   );
   const sectionRevisions: SectionRevisionForManifest[] = [];
   for (const s of sections) {
@@ -251,7 +253,9 @@ export async function runVerification(params: {
         include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
       });
       const currentHash = fingerprintSections(
-        currentSections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+        currentSections
+          .filter((s) => s.revisions[0])
+          .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
       );
       if (currentHash !== verifiedContentHash) {
         throw new ConflictError(
