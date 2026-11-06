@@ -1,8 +1,8 @@
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import {
-  artifactPayloadSchema, corpusSchema, prismaWritingExportSchema, rqFindingsSchema, runSchema, unwrapEnvelope,
-  type ArtifactTypeName, type ImportInput, type Supplements,
+  artifactPayloadSchema, corpusSchema, prismaWritingExportSchema, rqFindingsSchema, runListSchema, runSchema, unwrapEnvelope,
+  type ArtifactTypeName, type ImportInput, type SlrRunListItem, type Supplements,
 } from '../snapshots/slr-source.schemas.js';
 
 /** Artifacts the MVP writes from (docs/mvp-scope.md). Others are not fetched. */
@@ -163,6 +163,12 @@ export class SlrClient {
   // encodeURIComponent leaves dots alone and URL parsing resolves "." and ".." segments, which would leave the project path.
   private assertSafeProjectId(slrProjectId: string): void {
     if (/^\.+$/.test(slrProjectId)) throw new AppError('The linked SLR project id is not valid', 400, 'INVALID_SLR_PROJECT_ID');
+  }
+
+  /** The runs of an SLR project, newest first, with each artifact's review state. Read with the caller's own token. */
+  async listRuns(slrProjectId: string, ctx: SlrRequestContext = {}): Promise<SlrRunListItem[]> {
+    this.assertSafeProjectId(slrProjectId);
+    return this.getParsed(`/projects/${encodeURIComponent(slrProjectId)}/synthesis/artifacts/runs`, ctx, runListSchema);
   }
 
   /** Fetches the run, its own corpus and the MVP artifacts it contains, in the shape the importer expects. */
