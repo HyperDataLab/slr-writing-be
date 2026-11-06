@@ -13,15 +13,58 @@ import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.typ
  */
 export const ALWAYS_REQUIRED_SECTIONS = ['methods', 'results'] as const;
 
+/** JSON with object keys sorted, so equal facts always serialize equally. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+export interface FingerprintSection {
+  sectionKey: string;
+  contentHash: string | null;
+  /** The revision's recorded evidence facts. The gates read them, so the same text with other facts is another input. */
+  facts: unknown;
+}
+
 /**
- * Fingerprint of the latest revision of every section. A verification report records the fingerprint of what it
- * checked; if the sections change afterwards the report is stale and must not unlock H3.
+ * Fingerprint of the latest revision of every section: text hash plus a hash of its facts. A verification report
+ * records the fingerprint of what it checked; if either changes the report is stale and must not unlock H2/H3.
  */
-export function fingerprintSections(sections: Array<{ sectionKey: string; contentHash: string | null }>): string {
+export function fingerprintSections(sections: FingerprintSection[]): string {
   const parts = [...sections]
     .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
-    .map((s) => `${s.sectionKey}:${s.contentHash ?? 'empty'}`);
+    .map((s) => {
+      const factsHash = createHash('sha256').update(canonicalJson(s.facts ?? null)).digest('hex');
+      return `${s.sectionKey}:${s.contentHash ?? 'empty'}:${factsHash}`;
+    });
   return createHash('sha256').update(parts.join(';')).digest('hex');
+}
+
+/**
+ * Whether a verification report still describes the manuscript: the fingerprint it recorded equals the one of the
+ * latest section revisions now. Reports from before the fingerprint existed are never current (fail-closed).
+ */
+export async function isVerificationCurrent(
+  manuscriptId: string,
+  summary: unknown,
+  db: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const recorded = (summary as { verifiedContentHash?: unknown } | null)?.verifiedContentHash;
+  if (typeof recorded !== 'string') return false;
+  const sections = await db.manuscriptSection.findMany({
+    where: { manuscriptId },
+    include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
+  });
+  const current = fingerprintSections(
+    sections
+      .filter((s) => s.revisions[0])
+      .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
+  );
+  return recorded === current;
 }
 
 export interface RequiredSections {

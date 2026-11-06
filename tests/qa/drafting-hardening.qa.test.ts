@@ -329,17 +329,17 @@ describe('Drafting & H2 Hardening Invariants', () => {
       // 1. Draft
       await request(app).post(`${draftUrl(project.id, snapshot.id)}/draft`).set(as(alice)).send({});
 
-      // 2. Edit
+      // 2. Approve the generated draft (a hand-edited version would first need a current verification)
+      await request(app)
+        .post(`${draftUrl(project.id, snapshot.id)}/approve`)
+        .set(as(alice))
+        .send({ version: 1, note: 'Signed off by researcher' });
+
+      // 3. Edit
       await request(app)
         .put(draftUrl(project.id, snapshot.id))
         .set(as(alice))
         .send({ baseVersion: 1, markdown: '## Updated Results\n\nManual refinement with high quality.' });
-
-      // 3. Approve
-      await request(app)
-        .post(`${draftUrl(project.id, snapshot.id)}/approve`)
-        .set(as(alice))
-        .send({ version: 2, note: 'Signed off by researcher' });
 
       const events = await prisma.provenanceEvent.findMany({
         where: { projectId: project.id },

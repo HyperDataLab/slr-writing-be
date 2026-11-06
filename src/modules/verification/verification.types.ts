@@ -102,6 +102,8 @@ export const verificationReportViewSchema = z.object({
   issues: z.array(reviewIssueSchema),
   runBy: z.string(),
   runAt: z.string(),
+  /** True while no section has changed since this report ran. A stale report must be re-run. */
+  isCurrent: z.boolean(),
   versions: z.array(verificationReportSummaryRowSchema),
 });
 

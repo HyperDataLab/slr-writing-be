@@ -1,4 +1,4 @@
-import { computeRequiredSections, fingerprintSections } from '../manuscripts/required-sections.js';
+import { computeRequiredSections, fingerprintSections, isVerificationCurrent } from '../manuscripts/required-sections.js';
 import type { Prisma, VerificationReport } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
@@ -100,7 +100,9 @@ export async function runVerification(params: {
   });
 
   const verifiedContentHash = fingerprintSections(
-    sections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+    sections
+      .filter((s) => s.revisions[0])
+      .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
   );
   const sectionRevisions: SectionRevisionForManifest[] = [];
   for (const s of sections) {
@@ -251,7 +253,9 @@ export async function runVerification(params: {
         include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
       });
       const currentHash = fingerprintSections(
-        currentSections.filter((s) => s.revisions[0]).map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash })),
+        currentSections
+          .filter((s) => s.revisions[0])
+          .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
       );
       if (currentHash !== verifiedContentHash) {
         throw new ConflictError(
@@ -349,6 +353,7 @@ async function buildReportView(
     issues: report.issues as any,
     runBy: report.runBy,
     runAt: report.runAt.toISOString(),
+    isCurrent: await isVerificationCurrent(report.manuscriptId, report.summary, db),
     versions,
   };
 }
