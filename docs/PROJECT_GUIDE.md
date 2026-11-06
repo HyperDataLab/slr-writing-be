@@ -371,6 +371,8 @@ Lỗi upstream **không bao giờ** lộ URL, nội dung phản hồi hay stack 
 
 ## 10. Tích hợp với `slr-be` (đã kiểm chứng trên dữ liệu thật)
 
+> **Kiểm tra tích hợp 2026-11 (`slr-be@7931e86`, Firebase emulator, token Firebase thật):** cùng một ID token được cả `slr-be` và Writing BE chấp nhận; người ngoài bị từ chối khi đọc/liên kết project (403); REVIEWER không duyệt được artifact trên `slr-be` và không duyệt được H1/H3 ở Writing (403 `APPROVAL_REQUIRES_OWNER`, đã thử cả trên giao diện); bộ chọn run và `from-slr` chạy với run thật (snapshot `READY`, cảnh báo thật `NO_EVIDENCE`/`VALUE_DRIFT`/`CORPUS_ISSUE`). Dữ liệu seed không có evidence nên Results không soạn được và export bị chặn đúng thiết kế. Script và kết quả chi tiết: `docs/integration/`.
+
 ### Endpoint của `slr-be` mà client dùng
 
 Tiền tố `/api/projects/:slrProjectId/...`, cần Firebase ID token và vai trò trong project.
