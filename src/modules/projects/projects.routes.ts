@@ -9,7 +9,10 @@ import { validate } from '../../middleware/validation.middleware.js';
 import type { AuthenticatedRequest } from '../../shared/types/common.types.js';
 import snapshotRoutes from '../snapshots/snapshots.routes.js';
 import { createProject, getOwnedProject, listProjects } from './projects.service.js';
+import { createUserRateLimiter } from '../../middleware/rate-limit.middleware.js';
 import { listSlrRuns } from './slr-runs.service.js';
+
+const slrRunsLimiter = createUserRateLimiter({ max: 60 });
 
 const router = Router();
 router.use(requireAuth);
@@ -49,7 +52,7 @@ router.get('/:projectId', async (req: AuthenticatedRequest, res, next) => {
 });
 
 // Runs of the linked SLR project (read from slr-be with the caller's token), for the import picker.
-router.get('/:projectId/slr-runs', async (req: AuthenticatedRequest, res, next) => {
+router.get('/:projectId/slr-runs', slrRunsLimiter, async (req: AuthenticatedRequest, res, next) => {
   try {
     const runs = await listSlrRuns(
       { ownerId: req.user!.uid, projectId: req.params.projectId },

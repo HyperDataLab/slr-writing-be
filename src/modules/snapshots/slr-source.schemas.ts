@@ -117,7 +117,7 @@ export const runListItemSchema = z.object({
     validation_status: validationStatus,
   }).passthrough()),
 }).passthrough();
-export const runListSchema = z.array(runListItemSchema);
+export const runListSchema = z.array(z.unknown());
 
 /** One artifact payload as returned by slr-be. Only the identity fields are checked; the body is kept as is. */
 export const artifactPayloadSchema = z.object({

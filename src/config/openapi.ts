@@ -63,9 +63,9 @@ export const openApiDocument: OpenAPIV3.Document = {
     '/api/projects/{projectId}/slr-runs': {
       get: {
         tags: ['Snapshots'], summary: 'List the runs of the linked SLR project, for picking a run to import',
-        description: 'Read from slr-be with the caller token (same Authorization header). Newest first. Each run has runId, generatedAt, generatedBy, corpusHash, mvpArtifacts (review state of A1, A2, A7, A10: approved, unreviewed, needs_human_review, rejected or missing), mvpApproved (all four approved; informational, the import readiness check stays authoritative) and snapshots (snapshots of this project already imported from the run). Upstream failures use the same SLR_* codes as from-slr.',
+        description: 'Read from slr-be with the caller token (same Authorization header). Newest first. Each run has runId, generatedAt, generatedBy, corpusHash, mvpArtifacts (review state of A1, A2, A7, A10: approved, unreviewed, needs_human_review, rejected or missing), importable (A1 and A10 approved, the artifacts the import cannot do without; informational, the readiness check at import stays authoritative), complete (all four approved) and snapshots (snapshots of this project already imported from the run). Upstream failures use the same SLR_* codes as from-slr.',
         parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'Runs' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND' }, '502': { description: 'slr-be failed or answered with an unexpected shape' }, '504': { description: 'slr-be timed out' } },
+        responses: { '200': { description: 'Runs' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND' }, '429': { description: 'RATE_LIMITED' }, '502': { description: 'slr-be failed or did not answer with a list (runs of an unexpected shape are skipped)' }, '504': { description: 'slr-be timed out' } },
       },
     },
     '/api/projects/{projectId}/snapshots/from-slr': {

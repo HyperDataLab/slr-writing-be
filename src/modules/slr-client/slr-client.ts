@@ -1,7 +1,8 @@
 import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import {
-  artifactPayloadSchema, corpusSchema, prismaWritingExportSchema, rqFindingsSchema, runListSchema, runSchema, unwrapEnvelope,
+  artifactPayloadSchema, corpusSchema, prismaWritingExportSchema, rqFindingsSchema, runListItemSchema, runListSchema, runSchema, unwrapEnvelope,
   type ArtifactTypeName, type ImportInput, type SlrRunListItem, type Supplements,
 } from '../snapshots/slr-source.schemas.js';
 
@@ -168,7 +169,18 @@ export class SlrClient {
   /** The runs of an SLR project, newest first, with each artifact's review state. Read with the caller's own token. */
   async listRuns(slrProjectId: string, ctx: SlrRequestContext = {}): Promise<SlrRunListItem[]> {
     this.assertSafeProjectId(slrProjectId);
-    return this.getParsed(`/projects/${encodeURIComponent(slrProjectId)}/synthesis/artifacts/runs`, ctx, runListSchema);
+    const entries = await this.getParsed(`/projects/${encodeURIComponent(slrProjectId)}/synthesis/artifacts/runs`, ctx, runListSchema);
+    // The list is informational. A run whose shape is not understood is skipped, so one odd run cannot hide the others;
+    // importing it would still go through the strict run reader.
+    const runs: SlrRunListItem[] = [];
+    let skipped = 0;
+    for (const entry of entries) {
+      const parsed = runListItemSchema.safeParse(entry);
+      if (parsed.success) runs.push(parsed.data);
+      else skipped += 1;
+    }
+    if (skipped > 0) logger.warn({ skipped }, 'slr-be run list: skipped runs with an unexpected shape');
+    return runs;
   }
 
   /** Fetches the run, its own corpus and the MVP artifacts it contains, in the shape the importer expects. */

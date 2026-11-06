@@ -3,6 +3,9 @@ import { MVP_ARTIFACT_TYPES, SlrClient, type SlrRequestContext } from '../slr-cl
 import type { SlrRunListItem } from '../snapshots/slr-source.schemas.js';
 import { getOwnedProject } from './projects.service.js';
 
+/** Mirrors REQUIRED_ARTIFACTS of snapshot-readiness.ts. */
+const REQUIRED_FOR_IMPORT = ['A1', 'A10'] as const;
+
 export type MvpArtifactState = 'approved' | 'unreviewed' | 'needs_human_review' | 'rejected' | 'missing';
 
 export interface SlrRunSummary {
@@ -12,8 +15,13 @@ export interface SlrRunSummary {
   corpusHash: string;
   /** Review state of the artifacts the writing MVP reads (A1, A2, A7, A10). `missing` when the run has none. */
   mvpArtifacts: Record<string, MvpArtifactState>;
-  /** All four MVP artifacts approved on slr-be. Informational: the import's readiness check stays authoritative. */
-  mvpApproved: boolean;
+  /**
+   * A1 and A10, the artifacts the import cannot do without, are approved on slr-be. Informational: the readiness check at
+   * import stays authoritative. A2 and A7 only add warnings when they are not approved.
+   */
+  importable: boolean;
+  /** All four MVP artifacts approved. */
+  complete: boolean;
   /** Snapshots already imported from this run into this project. */
   snapshots: Array<{ id: string; status: string }>;
 }
@@ -29,7 +37,8 @@ export function summarizeRun(run: SlrRunListItem, imported: Array<{ id: string; 
     generatedBy: run.generated_by ?? null,
     corpusHash: run.corpus_hash,
     mvpArtifacts,
-    mvpApproved: MVP_ARTIFACT_TYPES.every((type) => mvpArtifacts[type] === 'approved'),
+    importable: REQUIRED_FOR_IMPORT.every((type) => mvpArtifacts[type] === 'approved'),
+    complete: MVP_ARTIFACT_TYPES.every((type) => mvpArtifacts[type] === 'approved'),
     snapshots: imported.filter((snapshot) => snapshot.sourceRunId === run.run_id).map(({ id, status }) => ({ id, status })),
   };
 }
