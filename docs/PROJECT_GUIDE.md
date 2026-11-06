@@ -429,6 +429,8 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 - `POST /snapshots/from-slr` giới hạn theo người dùng (`FROM_SLR_RATE_LIMIT_PER_MINUTE`, mặc định 20/phút) → 429 `RATE_LIMITED`. Đếm trong bộ nhớ của một tiến trình.
 - Tên và `slrProjectId` chứa NUL hoặc surrogate lẻ bị từ chối 400 thay vì lỗi 500 từ database.
 
+**Dùng token Firebase (2026-11):** FE gửi `Authorization: Bearer <Firebase ID token>`; Writing BE xác minh rồi chuyển nguyên header sang `slr-be` (cùng project Firebase nên `slr-be` cũng xác minh được). Token do SDK Firebase của FE làm mới tự động. Hồ sơ `users` trên `slr-be` do luồng `/auth/google/login` của `slr-fe` tạo; Writing không cần nó, nhưng người dùng phải là thành viên project SLR (dữ liệu của `slr-be`) mới liên kết được project.
+
 **Còn lại của xác thực:** chưa thử với token Firebase thật (cần FE đăng nhập); `FIREBASE_CHECK_REVOKED` cần thông tin service account. **Vai trò OWNER trên `slr-be` đã được kiểm tra cho H1** (`assertSlrOwner`, xem M5); H2 và H3 sẽ dùng lại đúng hàm đó khi làm. Khi liên kết project vẫn chỉ kiểm tra là thành viên.
 
 **Lỗ hổng đã biết (ưu tiên cao):**
@@ -468,6 +470,7 @@ npm run dev                 # http://localhost:5100  (Swagger: /api-docs)
 | `DEV_AUTH_ENABLED` | `false` | Chỉ có tác dụng khi không phải production; **không được bật cùng `FIREBASE_PROJECT_ID`** |
 | `FIREBASE_PROJECT_ID` | (trống) | Project Firebase phát token, dùng chung với `slr-be`. **Bắt buộc ở production**; trống = chỉ dev auth |
 | `FIREBASE_CHECK_REVOKED` | `false` | Từ chối cả token bị thu hồi; cần service account |
+| `FIREBASE_AUTH_EMULATOR_HOST` | (trống) | Dev: trỏ `firebase-admin` tới Auth emulator (ví dụ `localhost:9099`, do `npm run emulators` của `slr-be` mở). Cần `FIREBASE_PROJECT_ID` trùng project emulator (`slr-system-dev`) và `DEV_AUTH_ENABLED=false`. **Từ chối khởi động** nếu `NODE_ENV` không phải `development`/`test`, vì token của emulator giả mạo được |
 | `SLR_VERIFY_PROJECT_ACCESS` | `true` | Hỏi `slr-be` về quyền khi liên kết project |
 | `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` ngoài production, `false` ở production | Cho phép import tay |
 | `FROM_SLR_RATE_LIMIT_PER_MINUTE` | 20 | Số lần gọi `from-slr` mỗi người mỗi phút |
