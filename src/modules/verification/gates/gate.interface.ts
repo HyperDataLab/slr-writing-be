@@ -16,6 +16,8 @@ export interface GateEvaluationContext {
     researchQuestions: Array<{ rqId: string; code: string | null; question: string }>;
     sections: Array<{ key: string; include: boolean; subsections: Array<{ id: string; title: string }> }>;
   };
+  /** Per-RQ blueprint coverage; an RQ with a notApplicableReason is exempt from the drafted-paragraph requirement. */
+  coverage?: Array<{ rqId: string; notApplicableReason: string | null }>;
   /** Sections that must be drafted before the manuscript can pass (see manuscripts/required-sections). */
   requiredSections?: string[];
   supplements?: {

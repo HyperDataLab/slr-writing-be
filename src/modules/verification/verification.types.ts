@@ -80,6 +80,8 @@ export const verificationSummarySchema = z.object({
   notRun: z.number().int().nonnegative(),
   blockingIssues: z.number().int().nonnegative(),
   warningIssues: z.number().int().nonnegative(),
+  /** Fingerprint of the section revisions this report checked (see fingerprintSections). Absent on older reports. */
+  verifiedContentHash: z.string().optional(),
 });
 
 export const verificationReportSummaryRowSchema = z.object({

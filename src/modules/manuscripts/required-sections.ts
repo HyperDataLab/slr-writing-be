@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { prisma } from '../../config/prisma.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.types.js';
@@ -10,6 +11,17 @@ import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.typ
  * generator yet, or no paragraph with enough evidence) would block forever, so they are reported as omitted instead.
  */
 export const ALWAYS_REQUIRED_SECTIONS = ['methods', 'results'] as const;
+
+/**
+ * Fingerprint of the latest revision of every section. A verification report records the fingerprint of what it
+ * checked; if the sections change afterwards the report is stale and must not unlock H3.
+ */
+export function fingerprintSections(sections: Array<{ sectionKey: string; contentHash: string | null }>): string {
+  const parts = [...sections]
+    .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
+    .map((s) => `${s.sectionKey}:${s.contentHash ?? 'empty'}`);
+  return createHash('sha256').update(parts.join(';')).digest('hex');
+}
 
 export interface RequiredSections {
   required: string[];

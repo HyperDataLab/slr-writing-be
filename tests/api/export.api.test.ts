@@ -162,6 +162,46 @@ async function prepareReadyManuscript(uid = alice) {
 }
 
 describe('Module M9 — Submission Package Export & H3 Approval API', () => {
+  it('blocks H3 and export when a section is edited after verification ran (stale report)', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+
+    const edit = await request(app)
+      .put(`${base}/sections/results`)
+      .set(as(alice))
+      .send({ baseVersion: 1, markdown: 'Unverified claim, 99% of studies agree [E-99].' });
+    expect(edit.status).toBe(201);
+    await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 2 });
+
+    const status = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(status.body.data.canApprove).toBe(false);
+    expect(status.body.data.blockingReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining('verification report is stale')]),
+    );
+    expect((await request(app).post(`${base}/final/approve`).set(as(alice)).send({})).status).toBe(422);
+    expect((await request(app).post(`${base}/export`).set(as(alice)).send({})).status).toBe(422);
+
+    // Re-running verification checks the edited text; it FAILs, so H3 stays blocked for a different reason.
+    const rerun = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+    expect(rerun.body.data.report.status).toBe('FAILED');
+    const after = await request(app).get(`${base}/final/status`).set(as(alice));
+    expect(after.body.data.canApprove).toBe(false);
+  });
+
+  it('does not let manually emptied sections pass verification', async () => {
+    const { project, snapshot } = await prepareReadyManuscript();
+    const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+    const view = await request(app).get(`${base}/sections/results`).set(as(alice));
+    expect(view.status).toBe(200);
+    await request(app).put(`${base}/sections/results`).set(as(alice)).send({ baseVersion: 1, markdown: 'TODO' });
+    await request(app).post(`${base}/sections/results/approve`).set(as(alice)).send({ version: 2 });
+
+    const run = await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+
+    expect(run.body.data.report.gates.G7.status).toBe('FAIL');
+    expect(run.body.data.report.status).toBe('FAILED');
+  });
+
   it('blocks H3 and export while a required section is not drafted (only Methods approved)', async () => {
     const { project, snapshot } = await setup();
     const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;

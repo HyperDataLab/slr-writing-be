@@ -1167,8 +1167,13 @@ describe('Deterministic Gate Evaluators', () => {
           {
             sectionKey: 'results',
             version: 1,
-            markdown: '## Section covering RQ-1 and also rq-2 in deep detail.',
-            facts: { paragraphs: [{ paragraphId: 'P-a' }, { paragraphId: 'P-b' }] },
+            markdown: '## Section\n\nFirst drafted paragraph.\n\nSecond drafted paragraph.',
+            facts: {
+              paragraphs: [
+                { paragraphId: 'P-a', text: 'First drafted paragraph.' },
+                { paragraphId: 'P-b', text: 'Second drafted paragraph.' },
+              ],
+            },
           },
         ],
         paragraphPlans: [
@@ -1188,6 +1193,8 @@ describe('Deterministic Gate Evaluators', () => {
         totalRQs: 2,
         uncoveredRQs: 0,
         missingSections: [],
+        hollowSections: [],
+        notApplicableRQs: [],
       });
       expect(issues).toHaveLength(0);
     });
@@ -1215,6 +1222,8 @@ describe('Deterministic Gate Evaluators', () => {
         totalRQs: 2,
         uncoveredRQs: 2,
         missingSections: [],
+        hollowSections: [],
+        notApplicableRQs: [],
       });
 
       expect(issues).toHaveLength(2);
@@ -1258,6 +1267,56 @@ describe('Deterministic Gate Evaluators', () => {
         'results',
         'discussion',
       ]);
+    });
+
+    it('does not count a paragraph whose text was edited away (manual edits keep the old facts)', async () => {
+      const context = createMockContext({
+        blueprint: { researchQuestions: [{ rqId: 'rq-1', code: 'RQ-1', question: 'Accuracy?' }], sections: [] },
+        sections: [
+          {
+            sectionKey: 'results',
+            version: 2,
+            markdown: 'TODO',
+            facts: { paragraphs: [{ paragraphId: 'P-a', text: 'Original drafted paragraph.' }] },
+          },
+        ],
+        paragraphPlans: [{ id: 'P-a', sectionKey: 'results', claimStrength: 'neutral', rqIds: ['rq-1'] }],
+      });
+
+      const { result } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('FAIL');
+    });
+
+    it('exempts a research question the approved blueprint marks not applicable, and records it', async () => {
+      const context = createMockContext({
+        blueprint: {
+          researchQuestions: [
+            { rqId: 'rq-1', code: 'RQ-1', question: 'Accuracy?' },
+            { rqId: 'rq-2', code: 'RQ-2', question: 'Out of scope?' },
+          ],
+          sections: [],
+        },
+        sections: [
+          {
+            sectionKey: 'results',
+            version: 1,
+            markdown: 'Covered paragraph.',
+            facts: { paragraphs: [{ paragraphId: 'P-a', text: 'Covered paragraph.' }] },
+          },
+        ],
+        paragraphPlans: [{ id: 'P-a', sectionKey: 'results', claimStrength: 'neutral', rqIds: ['rq-1'] }],
+        coverage: [
+          { rqId: 'rq-1', notApplicableReason: null },
+          { rqId: 'rq-2', notApplicableReason: 'Outside the review scope.' },
+        ],
+      });
+
+      const { result, issues } = await evaluator.evaluate(context);
+
+      expect(result.status).toBe('PASS');
+      expect(result.details).toMatchObject({ notApplicableRQs: ['RQ-2'] });
+      expect(issues).toHaveLength(0);
     });
 
     it('fails on missing required sections even when the blueprint has no research questions', async () => {

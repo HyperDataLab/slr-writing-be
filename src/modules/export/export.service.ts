@@ -7,7 +7,7 @@ import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
 import { SECTION_TARGET_KIND } from '../drafting/drafting.service.js';
 import { getJournalProfile } from '../journal-profiles/journal-profiles.service.js';
-import { loadRequiredSections } from '../manuscripts/required-sections.js';
+import { fingerprintSections, loadRequiredSections } from '../manuscripts/required-sections.js';
 import { exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { getLatestVerificationReport } from '../verification/verification.service.js';
 import type { VerificationReportView } from '../verification/verification.types.js';
@@ -153,6 +153,17 @@ export async function getH3Status(params: { projectId: string; snapshotId: strin
       needsReview: sum.needsReview || 0,
       blockingIssuesCount,
     };
+
+    // A report only vouches for the section revisions it checked. Reports from before this check carry no
+    // fingerprint and are treated as stale (fail-closed).
+    const currentFingerprint = fingerprintSections(
+      sections.filter((sec) => sec.revisions[0]).map((sec) => ({ sectionKey: sec.sectionKey, contentHash: sec.revisions[0].contentHash })),
+    );
+    if ((latestVerification.summary as { verifiedContentHash?: string }).verifiedContentHash !== currentFingerprint) {
+      blockingReasons.push(
+        'The verification report is stale: sections changed after it was run. Run POST /verification/run again',
+      );
+    }
 
     if (latestVerification.status === 'FAILED') {
       blockingReasons.push('Latest verification report failed quality gate audits');
