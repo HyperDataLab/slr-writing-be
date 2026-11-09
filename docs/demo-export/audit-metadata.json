@@ -1,0 +1,21 @@
+{
+  "exportVersion": 1,
+  "exportedBy": "dev_user",
+  "exportedAt": "2026-11-09T07:29:09.495Z",
+  "manuscriptId": "b8f26023-87e4-4d84-b337-fb4c9ea5ccf8",
+  "snapshot": {
+    "id": "46eba884-f5ed-44cd-8c9d-f60de28dd997",
+    "runId": "run-20261030101014-gbekjc",
+    "slrProjectId": "proj_slr_live_demo",
+    "corpusHash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5",
+    "integrityHash": "sha256:249ccc02d4c20d191cce37d744b7d3c735a7346bdcdfe51bbd35e70649f06a71"
+  },
+  "journalProfile": {
+    "id": "generic-imrad",
+    "version": 1,
+    "name": "Generic IMRaD systematic review"
+  },
+  "missingProfileSections": [],
+  "verificationReportId": "141207f0-305f-4e3d-ad56-fd266aa1ddb0",
+  "verificationStatus": "PASSED_WITH_WARNINGS"
+}

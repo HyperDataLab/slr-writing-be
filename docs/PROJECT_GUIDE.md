@@ -507,6 +507,19 @@ npm run typecheck && npm run build
 - Test tích hợp tự tạo `Project` riêng cho từng test (provenance chỉ ghi thêm nên không xoá được); dữ liệu thừa vô hại, xoá hết bằng `docker compose down -v`.
 - Timeout test 30 s vì database trong Docker có lúc chậm.
 
+### E2E & Live Smoke Test
+```bash
+# E2E Pipeline nội bộ (mặc định offline Mock LLM, truyền --live nếu dùng Gemini)
+npm run e2e:demo
+
+# Live Smoke Test End-to-End đầy đủ trên HTTP với Server thật và Google Gemini API thật
+# Yêu cầu: demo-slr trên cổng 5000, slr-writing-be trên cổng 5100, GEMINI_API_KEY trong .env
+npm run test:live-smoke
+```
+- Tự động chạy toàn bộ pipeline 11 giai đoạn: khởi tạo project -> import snapshot từ `slr-be` -> sinh Methods chuẩn PRISMA -> duyệt H1 -> sinh kế hoạch đoạn (Paragraph Plans) -> sinh nháp Introduction, Results, Discussion bằng Gemini 3.5 Flash có pacing rate-limit -> duyệt H2 -> sinh nháp Conclusion, Abstract -> chạy bộ kiểm định chất lượng 7 cổng (G1–G7) -> duyệt H3 cuối cùng -> xuất và giải nén gói nộp bài PKZIP (`submission-package.zip`) gồm 7 file bất biến.
+- Hướng dẫn chi tiết, phân tích hạn mức Google AI Studio và kết quả kiểm thử xem tại [`docs/LIVE_SMOKE_TEST_GUIDE.md`](./LIVE_SMOKE_TEST_GUIDE.md).
+
+
 ### Migration với Prisma 7
 `prisma migrate dev` có lúc từ chối chạy trong môi trường không tương tác. Cách dùng được:
 ```bash
