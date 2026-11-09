@@ -1,0 +1,119 @@
+import { createHash } from 'node:crypto';
+import type { Prisma } from '../../generated/prisma/client.js';
+import { prisma } from '../../config/prisma.js';
+import type { BlueprintContent } from '../blueprint/blueprint.types.js';
+import type { ParagraphPlanContent } from '../paragraph-plans/paragraph-plan.types.js';
+import { isSynthesisSection } from '../summary-sections/summary-sections.js';
+
+/**
+ * Sections that must have a drafted (and, for H3, H2-approved) revision before the manuscript can be verified or
+ * exported. Methods comes from the fixed template and Results from the evidence-grounded drafter; every other section
+ * that the approved blueprint includes becomes required as soon as it has at least one READY_TO_DRAFT paragraph plan,
+ * because then the engine can draft it. Included sections the engine cannot draft (no plan, e.g. Abstract which has no
+ * generator yet, or no paragraph with enough evidence) would block forever, so they are reported as omitted instead.
+ */
+export const ALWAYS_REQUIRED_SECTIONS = ['methods', 'results'] as const;
+
+/** JSON with object keys sorted, so equal facts always serialize equally. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+export interface FingerprintSection {
+  sectionKey: string;
+  contentHash: string | null;
+  /** The revision's recorded evidence facts. The gates read them, so the same text with other facts is another input. */
+  facts: unknown;
+}
+
+/**
+ * Fingerprint of the latest revision of every section: text hash plus a hash of its facts. A verification report
+ * records the fingerprint of what it checked; if either changes the report is stale and must not unlock H2/H3.
+ */
+export function fingerprintSections(sections: FingerprintSection[]): string {
+  const parts = [...sections]
+    .sort((a, b) => a.sectionKey.localeCompare(b.sectionKey))
+    .map((s) => {
+      const factsHash = createHash('sha256').update(canonicalJson(s.facts ?? null)).digest('hex');
+      return `${s.sectionKey}:${s.contentHash ?? 'empty'}:${factsHash}`;
+    });
+  return createHash('sha256').update(parts.join(';')).digest('hex');
+}
+
+/**
+ * Whether a verification report still describes the manuscript: the fingerprint it recorded equals the one of the
+ * latest section revisions now. Reports from before the fingerprint existed are never current (fail-closed).
+ */
+export async function isVerificationCurrent(
+  manuscriptId: string,
+  summary: unknown,
+  db: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const recorded = (summary as { verifiedContentHash?: unknown } | null)?.verifiedContentHash;
+  if (typeof recorded !== 'string') return false;
+  const sections = await db.manuscriptSection.findMany({
+    where: { manuscriptId },
+    include: { revisions: { orderBy: { version: 'desc' }, take: 1 } },
+  });
+  const current = fingerprintSections(
+    sections
+      .filter((s) => s.revisions[0])
+      .map((s) => ({ sectionKey: s.sectionKey, contentHash: s.revisions[0].contentHash, facts: s.revisions[0].facts })),
+  );
+  return recorded === current;
+}
+
+export interface RequiredSections {
+  /** Sections the engine drafts from the corpus or a template. Verification requires these. */
+  required: string[];
+  /**
+   * Abstract and Conclusion the blueprint includes. They are written last from the approved sections, so verification
+   * does not wait for them, but H3 and export do.
+   */
+  synthesis: string[];
+  omitted: string[];
+  /** Required sections (other than Methods) with no READY_TO_DRAFT plan: they cannot be drafted until evidence is resolved. */
+  undraftable: string[];
+}
+
+export function computeRequiredSections(params: {
+  blueprintSections: Array<{ key: string; include: boolean }>;
+  plans: Array<{ sectionKey: string; status?: string }>;
+}): RequiredSections {
+  const planned = new Set(params.plans.filter((plan) => plan.status === 'READY_TO_DRAFT').map((plan) => plan.sectionKey));
+  const required = new Set<string>(ALWAYS_REQUIRED_SECTIONS);
+  const omitted: string[] = [];
+  const synthesis: string[] = [];
+
+  for (const section of params.blueprintSections) {
+    if (!section.include || required.has(section.key)) continue;
+    if (isSynthesisSection(section.key)) {
+      synthesis.push(section.key);
+      continue;
+    }
+    if (planned.has(section.key)) required.add(section.key);
+    else omitted.push(section.key);
+  }
+
+  const undraftable = [...required].filter((key) => key !== 'methods' && !planned.has(key));
+  return { required: [...required], synthesis, omitted, undraftable };
+}
+
+/** Required and omitted sections for the approved blueprint and the latest paragraph plans of a manuscript. */
+export async function loadRequiredSections(
+  manuscriptId: string,
+  blueprint: BlueprintContent,
+  db: Prisma.TransactionClient = prisma,
+): Promise<RequiredSections> {
+  const latestPlans = await db.paragraphPlanRevision.findFirst({
+    where: { manuscriptId },
+    orderBy: { version: 'desc' },
+  });
+  const plans = ((latestPlans?.content ?? null) as unknown as ParagraphPlanContent | null)?.plans ?? [];
+  return computeRequiredSections({ blueprintSections: blueprint.sections ?? [], plans });
+}

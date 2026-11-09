@@ -102,6 +102,23 @@ export const runSchema = z.object({
   }).passthrough()),
 }).passthrough();
 
+/**
+ * One entry of slr-be's run list (`GET /projects/:id/synthesis/artifacts/runs`). Only what the run picker shows is
+ * checked; the importer still reads and validates the whole run itself.
+ */
+export const runListItemSchema = z.object({
+  run_id: z.string().min(1),
+  generated_at: z.string().min(1),
+  generated_by: z.string().nullable().optional(),
+  corpus_hash: z.string().min(1),
+  artifacts: z.array(z.object({
+    artifact_type: artifactType,
+    review_status: reviewStatus,
+    validation_status: validationStatus,
+  }).passthrough()),
+}).passthrough();
+export const runListSchema = z.array(z.unknown());
+
 /** One artifact payload as returned by slr-be. Only the identity fields are checked; the body is kept as is. */
 export const artifactPayloadSchema = z.object({
   artifact_id: z.string().min(1),
@@ -139,6 +156,7 @@ export const importInputSchema = z.object({
 
 export type Corpus = z.infer<typeof corpusSchema>;
 export type SlrRun = z.infer<typeof runSchema>;
+export type SlrRunListItem = z.infer<typeof runListItemSchema>;
 export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
 export type ImportInput = z.infer<typeof importInputSchema>;
 export type Supplements = z.infer<typeof supplementsSchema>;

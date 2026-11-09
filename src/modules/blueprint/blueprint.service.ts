@@ -248,9 +248,12 @@ export async function decideBlueprint(params: {
  * For the steps after H1: the latest blueprint, only if its latest decision is an approval. Anything else, including a
  * blueprint that was edited after it was approved, gives null, and the next step must not start.
  */
-export async function getApprovedBlueprint(manuscriptId: string): Promise<BlueprintRevision | null> {
-  const revision = await latestRevision(prisma, manuscriptId);
+export async function getApprovedBlueprint(
+  manuscriptId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<BlueprintRevision | null> {
+  const revision = await latestRevision(db, manuscriptId);
   if (!revision) return null;
-  const decision = await latestDecision(prisma, { manuscriptId, stage: 'H1', targetKind: BLUEPRINT_TARGET_KIND, targetId: revision.id });
+  const decision = await latestDecision(db, { manuscriptId, stage: 'H1', targetKind: BLUEPRINT_TARGET_KIND, targetId: revision.id });
   return statusOf(decision) === 'APPROVED' ? revision : null;
 }

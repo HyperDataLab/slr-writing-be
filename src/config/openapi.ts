@@ -60,6 +60,14 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Readiness report' }, '400': { description: 'INVALID_IMPORT_INPUT' }, '404': { description: 'PROJECT_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/slr-runs': {
+      get: {
+        tags: ['Snapshots'], summary: 'List the runs of the linked SLR project, for picking a run to import',
+        description: 'Read from slr-be with the caller token (same Authorization header). Newest first. Each run has runId, generatedAt, generatedBy, corpusHash, mvpArtifacts (review state of A1, A2, A7, A10: approved, unreviewed, needs_human_review, rejected or missing), importable (A1 and A10 approved, the artifacts the import cannot do without; informational, the readiness check at import stays authoritative), complete (all four approved) and snapshots (snapshots of this project already imported from the run). Upstream failures use the same SLR_* codes as from-slr.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Runs' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND' }, '429': { description: 'RATE_LIMITED' }, '502': { description: 'slr-be failed or did not answer with a list (runs of an unexpected shape are skipped)' }, '504': { description: 'slr-be timed out' } },
+      },
+    },
     '/api/projects/{projectId}/snapshots/from-slr': {
       post: {
         tags: ['Snapshots'], summary: 'Fetch a run from slr-be with the caller token and import it as a snapshot',
@@ -174,6 +182,149 @@ export const openApiDocument: OpenAPIV3.Document = {
         tags: ['Paragraph plans'], summary: 'One stored version of the paragraph plans',
         parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
         responses: { '200': { description: 'The version view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'PARAGRAPH_PLANS_NOT_FOUND or project/snapshot not found' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/draft': {
+      post: {
+        tags: ['Drafting'], summary: 'Draft a section using LLM from READY_TO_DRAFT paragraph plans',
+        description: 'Requires approved blueprint (H1) and paragraph plans (M6). LLM is called with minimal evidence packs. 201 for new revision, 200 when unchanged.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Unchanged, existing latest version returned' }, '201': { description: 'Draft generated' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND, SNAPSHOT_NOT_FOUND or PARAGRAPH_PLANS_NOT_FOUND' }, '422': { description: 'BLUEPRINT_NOT_APPROVED, NO_PLANS_FOR_SECTION, NO_READY_PARAGRAPH_PLANS, or LLM_HALLUCINATED_REFERENCE' }, '503': { description: 'LLM_NOT_CONFIGURED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}': {
+      get: {
+        tags: ['Drafting'], summary: 'Latest section draft with H2 approval state and version list',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'The section draft view' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' } },
+      },
+      put: {
+        tags: ['Drafting'], summary: 'Save a manual edit of the section draft as a new version',
+        description: 'Body: {baseVersion, markdown}. Creates next version and sets H2 approval back to PENDING. 201 for new version, 200 when unchanged, 409 STALE_REVISION.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['baseVersion','markdown'], properties: { baseVersion: { type: 'integer' }, markdown: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Unchanged' }, '201': { description: 'New version' }, '400': { description: 'INVALID_DRAFT_EDIT' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/approve': {
+      post: {
+        tags: ['Drafting'], summary: 'H2: OWNER approves the latest version of the section draft',
+        description: 'Only the OWNER of the SLR project on slr-be may decide. Body: {version, note?}. 201 when recorded, 200 when identical decision already recorded.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already approved' }, '201': { description: 'Approval recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/reject': {
+      post: {
+        tags: ['Drafting'], summary: 'H2: OWNER rejects the latest version of the section draft',
+        description: 'Only the OWNER of the SLR project on slr-be may decide. Note is required. Body: {version, note}.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['version','note'], properties: { version: { type: 'integer' }, note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'Already rejected' }, '201': { description: 'Rejection recorded' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' }, '409': { description: 'STALE_REVISION' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/sections/{sectionKey}/revisions/{version}': {
+      get: {
+        tags: ['Drafting'], summary: 'One stored version of the section draft',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'sectionKey', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, description: 'A positive integer', schema: { type: 'string' } }],
+        responses: { '200': { description: 'The section revision view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'SECTION_NOT_FOUND or SECTION_REVISION_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification/run': {
+      post: {
+        tags: ['Verification'], summary: 'Execute Quality Gates G1-G7 and generate verification report revision',
+        description: 'Runs deterministic and LLM-assisted gates (G1-G7) against drafted sections. Idempotent: 201 for new revision, 200 when unchanged.',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Verification report unchanged' }, '201': { description: 'New verification report created' }, '401': { description: 'Not authenticated' }, '404': { description: 'SNAPSHOT_NOT_FOUND or MANUSCRIPT_NOT_FOUND' }, '422': { description: 'BLUEPRINT_NOT_APPROVED or NO_DRAFTED_SECTIONS' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification': {
+      get: {
+        tags: ['Verification'], summary: 'Get latest verification report with gates and review issues',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Latest verification report view' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/verification/revisions/{version}': {
+      get: {
+        tags: ['Verification'], summary: 'Get a specific historical revision of the verification report',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Historical verification report view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/citation-manifest': {
+      get: {
+        tags: ['Verification'], summary: 'Get the extracted CitationManifest with resolved studies and anchors',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Citation manifest' }, '401': { description: 'Not authenticated' }, '404': { description: 'VERIFICATION_REPORT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/status': {
+      get: {
+        tags: ['Export & H3'], summary: 'Evaluate H3 approval status and export readiness',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'H3 readiness status view' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/approve': {
+      post: {
+        tags: ['Export & H3'], summary: 'Approve final manuscript (H3 checkpoint, OWNER only)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { note: { type: 'string' } } } } } },
+        responses: { '200': { description: 'H3 approved' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '422': { description: 'QUALITY_GATES_BLOCKED' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/final/reject': {
+      post: {
+        tags: ['Export & H3'], summary: 'Reject final manuscript with note (H3 checkpoint, OWNER only)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['note'], properties: { note: { type: 'string', minLength: 3 } } } } } },
+        responses: { '200': { description: 'H3 rejected' }, '400': { description: 'INVALID_REQUEST' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export': {
+      post: {
+        tags: ['Export & H3'], summary: 'Create an immutable submission package export (fail-closed)',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Submission package exported successfully' }, '401': { description: 'Not authenticated' }, '403': { description: 'APPROVAL_REQUIRES_OWNER' }, '422': { description: 'H3_APPROVAL_REQUIRED or MANUSCRIPT_MODIFIED_AFTER_H3_APPROVAL' } },
+      },
+      get: {
+        tags: ['Export & H3'], summary: 'Get the latest submission package export metadata',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Latest export package view' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/revisions/{version}': {
+      get: {
+        tags: ['Export & H3'], summary: 'Get a specific historical submission package export by version',
+        parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Historical export package view' }, '400': { description: 'INVALID_VERSION' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/download': {
+      get: {
+        tags: ['Export & H3'], summary: 'Download submission package ZIP archive',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'version', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'PKZIP binary archive (application/zip)' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/lineage': {
+      get: {
+        tags: ['Export & H3'], summary: 'Reverse trace paragraph/sentence to source anchors',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'sectionKey', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'evidenceId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'findingId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'sentence', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'List of matching lineage items' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
       },
     },
     '/api/projects/{projectId}/snapshots/{snapshotId}': {

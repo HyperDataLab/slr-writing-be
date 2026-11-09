@@ -54,9 +54,13 @@ describe('the default profile', () => {
     expect(sources('abstract')).toEqual(['A10', 'other_sections']);
   });
 
-  it('names the Methods generator that really exists, and no other section has one yet', () => {
+  it('names the generators that really exist: the Methods template, and the summary writer for Abstract and Conclusion', () => {
     const withGenerator = DEFAULT_JOURNAL_PROFILE.sections.filter((section) => section.generator !== null);
-    expect(withGenerator.map((section) => [section.key, section.generator])).toEqual([[METHODS_SECTION, METHODS_GENERATOR]]);
+    expect(withGenerator.map((section) => [section.key, section.generator])).toEqual([
+      ['abstract', 'summary-llm@1'],
+      [METHODS_SECTION, METHODS_GENERATOR],
+      ['conclusion', 'summary-llm@1'],
+    ]);
   });
 
   it('passes its own schema', () => {

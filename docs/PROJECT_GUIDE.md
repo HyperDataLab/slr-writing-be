@@ -2,7 +2,7 @@
 
 > **Cách dùng file này.** Gửi nguyên file cho một AI-Agent (hoặc thành viên mới) trước khi giao việc. Sau khi đọc, người đọc phải biết: hệ thống để làm gì, đã làm đến đâu, quy tắc nào không được vi phạm, code nằm ở đâu, cách chạy và test, và module tiếp theo cần làm gì.
 >
-> - Cập nhật lần cuối: **2026-10-30**. Khi code và file này lệch nhau thì **code đúng**; hãy sửa file này.
+> - Cập nhật lần cuối: **2026-11-06** (quy tắc section bắt buộc cho verification/H3, xem M8–M9). Khi code và file này lệch nhau thì **code đúng**; hãy sửa file này.
 > - Tài liệu nền: `docs/SLR_AI_Writing_Implementation_Roadmap.md` (thiết kế đầy đủ, nhiều phần là *đề xuất*), `docs/mvp-scope.md`, `docs/slr-be-survey.md`, `docs/adr/`.
 > - `spec.md` ở gốc repo là bản chụp cũ (lúc repo mới khởi tạo). **File này thay thế nó** cho mọi mục về trạng thái hiện tại.
 
@@ -158,6 +158,10 @@ flowchart TD
 | Methods (M2) | Sinh phần Methods bằng mẫu cố định từ snapshot, 3 lớp: dữ kiện → câu chữ → kiểm tra số (xem M2 ở mục 15) |
 | LLM (M4) | Lớp gọi Gemini: kết quả có cấu trúc đã kiểm bằng schema, prompt coi văn bản ngoài là dữ liệu, giới hạn đầu vào/đầu ra/số lời gọi/ngân sách ngày; chưa bước nào dùng (xem M4 ở mục 15) |
 | Dàn ý + H1 (M5) | Sinh dàn ý bằng quy tắc từ profile và snapshot, người dùng sửa theo phiên bản, **OWNER của project SLR duyệt H1** (xem M5 ở mục 15) |
+| ParagraphPlan (M6) | Kế hoạch từng đoạn: rhetorical move, claim slot, liên kết finding và evidence pack tối thiểu, kiểm soát claim strength (xem M6 ở mục 15) |
+| Sinh văn bản + H2 (M7) | Sinh bản nháp section bằng LLM, đối soát registry-only citations, kiểm soát sửa đổi và **OWNER duyệt H2** (xem M7 ở mục 15) |
+| Verification + Gates (M8) | Trích xuất CitationManifest, audit tự động 7 Quality Gates (G1–G7), phát hiện số liệu không căn cứ và trích dẫn giả mạo (xem M8 ở mục 15) |
+| Export + H3 (M9) | **OWNER duyệt H3** bản cuối, cơ chế Fail-Closed chặn export khi có lỗi, xuất file nén PKZIP chuẩn chứa 7 file kèm reverse lineage graph (xem M9 ở mục 15) |
 | Journal Profile (M3) | Khung bài báo mặc định `generic-imrad`, luôn "chưa xác minh", schema chặt chống trình bày gợi ý như chính sách (xem M3 ở mục 15) |
 | Kiểm thử | Hàng trăm test qua (chạy `npm test` để biết con số hiện tại), gồm các bộ QA độc lập do sub-agent viết trong `tests/qa/` |
 
@@ -171,7 +175,7 @@ flowchart TD
 
 ### Chưa làm (thứ tự khuyến nghị ở [mục 15](#15-lộ-trình-các-module-tiếp-theo))
 
-Thử xác thực với token Firebase thật · kiểm tra vai trò OWNER cho H2 và H3 (H1 đã có) · đề xuất dàn ý bằng LLM · ParagraphPlan · sinh văn bản + H2 · citation manifest + verification + gate · export + H3 · giao diện · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
+Thử Gemini thật trên run có evidence thật (Abstract/Conclusion mới chỉ thử với LLM giả) · đề xuất dàn ý bằng LLM · siết bảo mật còn lại cho production (CSP, Swagger, `x-request-id`) · trigger bất biến cho bảng con.
 
 ---
 
@@ -307,6 +311,7 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | GET | `/projects/:projectId` | Xem project | 200; 404 `PROJECT_NOT_FOUND` |
 | POST | `/projects/:projectId/snapshots/validate` | Chạy thử readiness, **không lưu** | 200 báo cáo |
 | POST | `/projects/:projectId/snapshots` | Import tay (`{run, corpus, artifacts, supplements}`) → `sourceSystem='manual'` | 201 mới / 200 đã có / 422 |
+| GET | `/projects/:projectId/slr-runs` | Liệt kê run của project SLR đã liên kết (đọc từ `slr-be` bằng token người gọi, mới nhất trước): `runId`, `generatedAt`, `generatedBy`, `corpusHash`, `mvpArtifacts` (trạng thái duyệt A1/A2/A7/A10, `missing` nếu run không có), `importable` (A1 và A10, hai artifact bắt buộc của import, đã approved; chỉ để tham khảo, kiểm tra readiness khi import mới là chuẩn), `complete` (cả A1/A2/A7/A10 đã approved). Run có cấu trúc lạ bị bỏ qua (có log) chứ không làm hỏng cả danh sách; giới hạn 60 lần/phút/người, `snapshots` (đã import từ run này) | 200 / 404 / lỗi `SLR_*` |
 | POST | `/projects/:projectId/snapshots/from-slr` | Body `{runId}`; service tự lấy từ `slr-be` → `sourceSystem='slr-be'` | 201 / 200 / 422 / lỗi `SLR_*` |
 | GET | `/projects/:projectId/snapshots` | Danh sách (không payload) | 200 |
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Số đếm, trạng thái artifact, supplements (kind/hash), issues | 200; 404 `SNAPSHOT_NOT_FOUND` |
@@ -366,6 +371,8 @@ Lỗi upstream **không bao giờ** lộ URL, nội dung phản hồi hay stack 
 
 ## 10. Tích hợp với `slr-be` (đã kiểm chứng trên dữ liệu thật)
 
+> **Kiểm tra tích hợp 2026-11 (`slr-be@7931e86`, Firebase emulator, token Firebase thật):** cùng một ID token được cả `slr-be` và Writing BE chấp nhận; người ngoài bị từ chối khi đọc/liên kết project (403); REVIEWER không duyệt được artifact trên `slr-be` và không duyệt được H1/H3 ở Writing (403 `APPROVAL_REQUIRES_OWNER`, đã thử cả trên giao diện); bộ chọn run và `from-slr` chạy với run thật (snapshot `READY`, cảnh báo thật `NO_EVIDENCE`/`VALUE_DRIFT`/`CORPUS_ISSUE`). Dữ liệu seed không có evidence nên Results không soạn được và export bị chặn đúng thiết kế. Script và kết quả chi tiết: `docs/integration/`.
+
 ### Endpoint của `slr-be` mà client dùng
 
 Tiền tố `/api/projects/:slrProjectId/...`, cần Firebase ID token và vai trò trong project.
@@ -424,6 +431,8 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 - `POST /snapshots/from-slr` giới hạn theo người dùng (`FROM_SLR_RATE_LIMIT_PER_MINUTE`, mặc định 20/phút) → 429 `RATE_LIMITED`. Đếm trong bộ nhớ của một tiến trình.
 - Tên và `slrProjectId` chứa NUL hoặc surrogate lẻ bị từ chối 400 thay vì lỗi 500 từ database.
 
+**Dùng token Firebase (2026-11):** FE gửi `Authorization: Bearer <Firebase ID token>`; Writing BE xác minh rồi chuyển nguyên header sang `slr-be` (cùng project Firebase nên `slr-be` cũng xác minh được). Token do SDK Firebase của FE làm mới tự động. Hồ sơ `users` trên `slr-be` do luồng `/auth/google/login` của `slr-fe` tạo; Writing không cần nó, nhưng người dùng phải là thành viên project SLR (dữ liệu của `slr-be`) mới liên kết được project.
+
 **Còn lại của xác thực:** chưa thử với token Firebase thật (cần FE đăng nhập); `FIREBASE_CHECK_REVOKED` cần thông tin service account. **Vai trò OWNER trên `slr-be` đã được kiểm tra cho H1** (`assertSlrOwner`, xem M5); H2 và H3 sẽ dùng lại đúng hàm đó khi làm. Khi liên kết project vẫn chỉ kiểm tra là thành viên.
 
 **Lỗ hổng đã biết (ưu tiên cao):**
@@ -463,6 +472,7 @@ npm run dev                 # http://localhost:5100  (Swagger: /api-docs)
 | `DEV_AUTH_ENABLED` | `false` | Chỉ có tác dụng khi không phải production; **không được bật cùng `FIREBASE_PROJECT_ID`** |
 | `FIREBASE_PROJECT_ID` | (trống) | Project Firebase phát token, dùng chung với `slr-be`. **Bắt buộc ở production**; trống = chỉ dev auth |
 | `FIREBASE_CHECK_REVOKED` | `false` | Từ chối cả token bị thu hồi; cần service account |
+| `FIREBASE_AUTH_EMULATOR_HOST` | (trống) | Dev: trỏ `firebase-admin` tới Auth emulator (ví dụ `localhost:9099`, do `npm run emulators` của `slr-be` mở). Cần `FIREBASE_PROJECT_ID` trùng project emulator (`slr-system-dev`) và `DEV_AUTH_ENABLED=false`. **Từ chối khởi động** nếu `NODE_ENV` không phải `development`/`test`, vì token của emulator giả mạo được |
 | `SLR_VERIFY_PROJECT_ACCESS` | `true` | Hỏi `slr-be` về quyền khi liên kết project |
 | `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` ngoài production, `false` ở production | Cho phép import tay |
 | `FROM_SLR_RATE_LIMIT_PER_MINUTE` | 20 | Số lần gọi `from-slr` mỗi người mỗi phút |
@@ -613,7 +623,7 @@ flowchart LR
 
 Khung bài báo mặc định, **không phải chính sách của một tạp chí nào**. Là hằng số trong code (chưa có bảng, chưa có CRUD), nhưng có schema chặt để sau này thêm profile của tạp chí thật mà không thể vô tình trình bày gợi ý như chính sách.
 
-- **Profile `generic-imrad` (version 1):** 6 mục theo thứ tự: Abstract, Introduction, Methods, Results, Discussion, Conclusion. Mỗi mục có `key`, `order` (1 đến 6, không đứt quãng), `required`, `wordBudget` (min/max), `sources` (dữ liệu để viết mục đó, theo `docs/mvp-scope.md` mục 5), `generator` (bộ sinh đã có, hiện chỉ Methods: `methods-template@1`; mục khác `null`) và `purpose`.
+- **Profile `generic-imrad` (version 1):** 6 mục theo thứ tự: Abstract, Introduction, Methods, Results, Discussion, Conclusion. Mỗi mục có `key`, `order` (1 đến 6, không đứt quãng), `required`, `wordBudget` (min/max), `sources` (dữ liệu để viết mục đó, theo `docs/mvp-scope.md` mục 5), `generator` (bộ sinh đã có: Methods `methods-template@1`, Abstract và Conclusion `summary-llm@1`; Introduction, Results, Discussion do bộ soạn theo paragraph plan nên chưa ghi trong profile, `null`) và `purpose`.
 - **Luôn "chưa xác minh":** `verification = { status: 'unverified', verifiedAt: null, verifiedBy: null, policySourceUrls: [] }`, `wordBudgetSource = 'suggested_default'` (số từ là gợi ý của hệ thống, không phải giới hạn của tạp chí), `citationStyle = null`, và có `notice` hiện ở mọi nơi hiển thị profile.
 - **Quy tắc trong schema** (`journal-profile.schema.ts`, kiểm tra ngay khi server khởi động — profile vi phạm thì server không chạy):
   - profile `unverified` không được mang ngày xác minh, người xác minh hay nguồn chính sách, bắt buộc có `notice`, và số từ chỉ được là `suggested_default`;
@@ -699,12 +709,18 @@ flowchart TD
 - Mỗi đoạn: rhetorical move, claim slot, danh sách `finding`/`evidence` (ID **phải tồn tại trong snapshot**; plan trỏ ID lạ thì bị từ chối), `claim_strength` (neutral/qualified/strong), qualifier/điều kiện giữ nguyên, citation policy `registry_only`. Trạng thái `READY_TO_DRAFT` chỉ khi mọi claim quan trọng có evidence hợp lệ.
 
 ### M7 — Sinh văn bản + H2
+- **Abstract và Conclusion (`modules/summary-sections/`, generator `summary-llm@1`):** viết **sau cùng** bằng `POST .../sections/abstract|conclusion/draft`, từ văn bản các section **đã được OWNER duyệt H2** (mọi section bắt buộc của engine: Methods, Results và section có plan sẵn sàng), cùng câu hỏi nghiên cứu và luồng PRISMA; không đọc corpus. Điều kiện: blueprint đã duyệt và bật section đó (`SECTION_NOT_INCLUDED`), mọi section nguồn đã duyệt H2 ở phiên bản mới nhất (`422 SOURCE_SECTIONS_NOT_APPROVED`, `details.sections`). LLM trả `{text, usedSections}`; hệ thống **từ chối và không lưu gì** nếu: nêu section không được cung cấp (`LLM_UNKNOWN_SOURCE_SECTION`), độ dài ngoài 30 từ đến 1,5 lần ngân sách của profile (`LLM_OUTPUT_LENGTH`), có tiêu đề (`LLM_OUTPUT_HEADING`), có mã trích dẫn `[x]` mà các section nguồn không có (`LLM_HALLUCINATED_REFERENCE`), hoặc có con số không xuất hiện trong các section nguồn / luồng PRISMA / số nghiên cứu và câu hỏi (`LLM_UNGROUNDED_NUMBER`). Chữ số của mọi hệ chữ (toàn chiều rộng, chỉ số trên, Ả Rập–Ấn, Devanagari...) được quy về ASCII trước khi so, và ngoặc toàn chiều rộng được gấp lại. **Giới hạn đã biết** (giống G4): số viết bằng chữ ("ninety-nine") hoặc dính chữ ("3rd", "RQ7") không bị thấy; mức độ chắc chắn của câu (hedge → khẳng định) chưa được máy kiểm, chỉ người duyệt H2 và gate G6 trên kế hoạch đoạn. `facts` ghi `kind: 'synthesis'`, `sourceSections[{sectionKey, version, contentHash}]` và `paragraphs` (không có evidence/finding id: bản tóm tắt không tự trích dẫn). Ghi lại cùng văn bản từ cùng nguồn thì không tạo phiên bản mới (giữ lần duyệt). Bản thảo ghép thêm tiêu đề `## <Tên section>` cho mọi section chưa có tiêu đề `#`/`##` (Methods tự có).
 - Gửi cho LLM *evidence pack tối thiểu*, không gửi cả corpus. LLM trả `{text, usedEvidenceIds[]}`; hệ thống kiểm tra `usedEvidenceIds ⊆ pack`, **không** nhận reference mới. Mỗi đoạn có revision + lineage. **OWNER duyệt H2** trước khi sang kiểm chứng cuối.
 
 ### M8 — Citation manifest + Verification + Quality gates
+- **Không PASS rỗng (sửa 2026-11-06):** G7 chỉ PASS khi mọi section bắt buộc đã draft **và** mỗi RQ có ít nhất một đoạn đã draft được plan cho RQ đó (`ParagraphPlan.rqIds` ↔ `facts.paragraphs[].paragraphId`); nhắc tới mã RQ trong văn bản (ví dụ danh sách RQ ở Methods) không còn tính là phủ. G1 trả `NOT_APPLICABLE` khi bản thảo không có citation nào thay vì "PASS 0/0". Thiếu section bắt buộc nên verification báo `FAILED` và H3 bị chặn.
+- **Bổ sung sau QA (2026-11-06):** (1) báo cáo verification lưu `summary.verifiedContentHash` (vân tay revision mới nhất của mọi section, `fingerprintSections`); `GET /final/status` chặn với "verification report is stale" nếu section đổi sau khi chạy, hoặc báo cáo cũ không có vân tay; ghi báo cáo cũng bị từ chối `409 VERIFICATION_INPUT_CHANGED` nếu section đổi trong lúc gate đang chạy. (2) Sửa tay bản nháp giữ nguyên `facts`, nên G7 chỉ tính đoạn mà văn bản còn nằm trong markdown; section bắt buộc (trừ Methods) không còn đoạn nào → `FAIL` (`details.hollowSections`). (3) RQ mà H1 đánh dấu `notApplicableReason` được miễn khỏi yêu cầu có đoạn đã draft (ghi ở `details.notApplicableRQs`).
+- **Sửa tay bản nháp và H2 (2026-11-06):** `PUT /sections/:key` tạo phiên bản `manual-edit` (giữ nguyên `facts`), `methods` bị từ chối `422 SECTION_NOT_EDITABLE`. Duyệt H2 một phiên bản `manual-edit` chỉ được khi báo cáo verification mới nhất **không FAILED** và **còn hiện hành** (`isCurrent`: vân tay trong `summary.verifiedContentHash` bằng vân tay các section lúc này; vân tay gồm hash văn bản **và hash `facts`** của revision mới nhất mỗi section, vì các gate đọc `facts`; so nội dung chứ không so đồng hồ; báo cáo ghi theo công thức cũ coi như cũ); nếu không → `422 REVERIFICATION_REQUIRED`. Từ chối H2 luôn được. View báo cáo có thêm `isCurrent` (sửa A→B→A: về lại đúng văn bản đã kiểm thì báo cáo cũ lại hiện hành).
+- **Nguyên tử và minh bạch (2026-11-06):** `decideH3` lấy khoá snapshot **trước** rồi mới tính trạng thái; `getH3Status` nhận client giao dịch (`db`) để chỉ dùng một kết nối khi đang giữ khoá (tránh cạn pool); hash tổng hợp H3 nay gồm cả revision blueprint + profile (đổi blueprint sau khi duyệt H3 thì phải duyệt lại; các lần duyệt H3 cũ coi như hết hiệu lực). `createExportPackage` kiểm lại H3 (trạng thái, lý do chặn, hash, id lần duyệt) dưới khoá trước khi ghi, nếu bản thảo đổi trong lúc đóng gói thì `409 EXPORT_INPUT_CHANGED`. Section bắt buộc mà engine không draft được (không có plan sẵn sàng) có thông báo riêng chỉ ra cần xử lý evidence. Section mà profile yêu cầu nhưng gói không có (Abstract, Conclusion) được nêu ở mục "Sections Not Included" của `ai-disclosure.md` và `missingProfileSections` trong `audit-metadata.json`.
 - `CitationManifest` tách marker khỏi văn xuôi; kiểm tra tồn tại trong registry. Gate G1–G7 (roadmap mục 7): mỗi gate trả `PASS | WARNING | FAIL | NEEDS_REVIEW | NOT_APPLICABLE | NOT_RUN` và **`NOT_RUN` không được coi là pass**. Có lớp tất định (ID, FK, quote khớp, đối soát số PRISMA) và lớp LLM hỗ trợ (evidence có ủng hộ claim không, có mạnh hơn nguồn không); LLM **không** là bằng chứng cuối. Sinh `ReviewIssue` có severity, đích, lý do, đề xuất; sửa có kiểm soát (`RevisionDiff`), claim đổi thì kiểm lại.
 
-### M9 — Export + H3
+### M9 — Export + H3 — **đã code, có test đầy đủ**
+- **Section bắt buộc (`modules/manuscripts/required-sections.ts`):** verification và H3 chỉ qua khi mọi section bắt buộc đã có bản nháp (H3 còn cần mỗi bản nháp đã duyệt H2). Bắt buộc = `methods` + `results` + mọi section blueprint đã bật mà có ít nhất một paragraph plan `READY_TO_DRAFT` (engine chỉ draft được các section đó). **Abstract và Conclusion** (nếu blueprint bật) là section tổng hợp: verification **không** đợi chúng (chúng viết sau H2), nhưng **H3 và export bắt buộc** (có trong `requiredSections` của `GET /final/status`), và nếu một section nguồn đổi sau khi chúng được viết thì H3 bị chặn "was written from earlier versions of: ..." (phải soạn lại; vân tay verification cũng đổi nên phải chạy lại verification). Section blueprint đã bật nhưng engine không draft được (không có plan, hoặc mọi plan `NEEDS_EVIDENCE`) **không chặn** mà được liệt kê trong `omittedSections` của `GET /final/status` (cùng `requiredSections`). Thiếu section bắt buộc → `blockingReasons` có "Required section 'x' has not been drafted yet".
 - Chặn khi có FAIL critical, citation không tồn tại, PRISMA lệch, thiếu H3. Gói gồm: Markdown, citation manifest, báo cáo chất lượng, issue còn mở, lịch sử revision, lời khai sử dụng AI, metadata audit (snapshot + hash + profile + model config). **Truy ngược được một câu về `ParagraphPlan → Finding → Study → SourceAnchor`** bằng một truy vấn.
 
 ### M10 — Giao diện

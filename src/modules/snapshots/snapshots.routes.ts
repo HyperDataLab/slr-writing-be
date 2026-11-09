@@ -7,6 +7,9 @@ import { BadRequestError, ForbiddenError } from '../../shared/errors/app-error.j
 import blueprintRoutes from '../blueprint/blueprint.routes.js';
 import methodsRoutes from '../methods/methods.routes.js';
 import paragraphPlanRoutes from '../paragraph-plans/paragraph-plan.routes.js';
+import draftingRoutes from '../drafting/drafting.routes.js';
+import { verificationRouter } from '../verification/verification.routes.js';
+import exportRouter from '../export/export.routes.js';
 import { getOwnedProject } from '../projects/projects.service.js';
 import { SlrClient, isValidRunId } from '../slr-client/slr-client.js';
 import { importSnapshot, validateImport } from './snapshot-import.service.js';
@@ -83,5 +86,8 @@ router.get('/:snapshotId', async (req: Request<Params>, res, next) => {
 router.use('/:snapshotId/manuscript/methods', methodsRoutes);
 router.use('/:snapshotId/manuscript/blueprint', blueprintRoutes);
 router.use('/:snapshotId/manuscript/paragraph-plans', paragraphPlanRoutes);
+router.use('/:snapshotId/manuscript/sections/:sectionKey', draftingRoutes);
+router.use('/:snapshotId/manuscript', verificationRouter);
+router.use('/:snapshotId/manuscript', exportRouter);
 
 export default router;

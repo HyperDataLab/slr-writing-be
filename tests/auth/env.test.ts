@@ -18,6 +18,17 @@ describe('parseEnv production rules', () => {
     expect(parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'my-project' }).FIREBASE_PROJECT_ID).toBe('my-project');
   });
 
+  it('refuses the Firebase Auth emulator outside development and test (its tokens can be forged)', () => {
+    const host = 'localhost:9099';
+    expect(() => parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: host })).toThrow(/FIREBASE_AUTH_EMULATOR_HOST/);
+    expect(() => parseEnv({ FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: host })).toThrow(/FIREBASE_AUTH_EMULATOR_HOST/);
+    expect(parseEnv({ NODE_ENV: 'development', FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: host }).FIREBASE_PROJECT_ID).toBe('p');
+    // firebase-admin enters emulator mode for any non-empty value, whitespace included, so that is refused too.
+    expect(() => parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: '  ' })).toThrow(/FIREBASE_AUTH_EMULATOR_HOST/);
+    expect(parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: '' }).FIREBASE_PROJECT_ID).toBe('p');
+    expect(parseEnv({ NODE_ENV: 'test', FIREBASE_PROJECT_ID: 'p', FIREBASE_AUTH_EMULATOR_HOST: host }).FIREBASE_PROJECT_ID).toBe('p');
+  });
+
   it('does not require a project id in development or test', () => {
     expect(parseEnv({ NODE_ENV: 'development' }).FIREBASE_PROJECT_ID).toBeUndefined();
     expect(parseEnv({ NODE_ENV: 'test' }).FIREBASE_PROJECT_ID).toBeUndefined();

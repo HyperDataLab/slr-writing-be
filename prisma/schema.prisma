@@ -304,6 +304,8 @@ model Manuscript {
   blueprints BlueprintRevision[]
   approvals      Approval[]
   paragraphPlans ParagraphPlanRevision[]
+  verificationReports VerificationReport[]
+  exportPackages      ExportPackage[]
 
   @@unique([snapshotId])
 }
@@ -384,6 +386,8 @@ model Approval {
   slrRole      String
   decidedAt    DateTime   @default(now())
 
+  exportPackages ExportPackage[]
+
   @@index([manuscriptId, stage, targetKind, targetId])
 }
 
@@ -424,4 +428,50 @@ model ParagraphPlanRevision {
 
   @@unique([manuscriptId, version])
   @@index([manuscriptId, blueprintRevisionId])
+}
+
+/// Báo cáo kiểm định chất lượng bản thảo (Quality Gates G1-G7). Chỉ ghi thêm.
+model VerificationReport {
+  id           String     @id @default(uuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  version      Int
+  /// 'PASSED' | 'PASSED_WITH_WARNINGS' | 'FAILED'
+  status       String
+  /// CitationManifest JSON
+  manifest     Json
+  /// Record<GateId, QualityGateResult>
+  gates        Json
+  /// Danh sách ReviewIssue[]
+  issues       Json
+  /// Thống kê: passed, warnings, failed, needsReview
+  summary      Json
+  runBy        String
+  runAt        DateTime   @default(now())
+  exportPackages ExportPackage[]
+
+  @@unique([manuscriptId, version])
+  @@index([manuscriptId, status])
+}
+
+/// Gói xuất bản cuối cùng của bản thảo (Submission Package). Chỉ ghi thêm: trigger chặn UPDATE/DELETE.
+model ExportPackage {
+  id                   String             @id @default(uuid())
+  manuscriptId         String
+  manuscript           Manuscript         @relation(fields: [manuscriptId], references: [id], onDelete: Restrict)
+  version              Int
+  h3ApprovalId         String
+  h3Approval           Approval           @relation(fields: [h3ApprovalId], references: [id], onDelete: Restrict)
+  verificationReportId String
+  verificationReport   VerificationReport @relation(fields: [verificationReportId], references: [id], onDelete: Restrict)
+  packageHash          String
+  /// Chỉ mục các file trong gói (tên file, kích thước bytes, sha256 hash)
+  manifest             Json
+  /// Nội dung chi tiết có cấu trúc của toàn bộ gói nộp bài
+  bundle               Json
+  exportedBy           String
+  exportedAt           DateTime           @default(now())
+
+  @@unique([manuscriptId, version])
+  @@index([manuscriptId, packageHash])
 }
