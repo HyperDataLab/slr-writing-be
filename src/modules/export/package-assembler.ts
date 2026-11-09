@@ -25,7 +25,7 @@ export interface AssembleBundleParams {
     id: string;
     version: number;
     name: string;
-    sections: Array<{ key: string; order: number; required: boolean }>;
+    sections: Array<{ key: string; title: string; order: number; required: boolean }>;
   };
   sections: Array<{
     sectionKey: string;
@@ -116,7 +116,9 @@ export function assembleSubmissionBundle(params: {
   for (const profSec of orderedSections) {
     const rev = sectionMap.get(profSec.key.toLowerCase());
     if (rev && rev.markdown.trim().length > 0) {
-      manuscriptParts.push(`${rev.markdown.trim()}\n\n`);
+      const body = rev.markdown.trim();
+      // Methods carries its own heading; the other writers produce body text only.
+      manuscriptParts.push(`${/^#{1,2}\s/.test(body) ? '' : `## ${profSec.title}\n\n`}${body}\n\n`);
       includedSectionKeys.add(profSec.key.toLowerCase());
     }
   }

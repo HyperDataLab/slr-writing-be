@@ -15,6 +15,8 @@ import {
 } from '../../src/modules/export/export.service.js';
 import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
+import { generateSynthesisSection } from '../../src/modules/summary-sections/summary-sections.service.js';
+import { summaryMock } from '../helpers/summary-mock.js';
 import { generateMethods } from '../../src/modules/methods/methods.service.js';
 import { createParagraphPlans } from '../../src/modules/paragraph-plans/paragraph-plan.service.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
@@ -49,6 +51,8 @@ describe('End-to-End Real Pipeline Integration Test', () => {
             explanation: 'The premise quote directly supports the evaluated claim.',
           };
         }
+        const summary = summaryMock(req);
+        if (summary) return summary;
         return { output: {} };
       }),
     );
@@ -253,6 +257,22 @@ describe('End-to-End Real Pipeline Integration Test', () => {
     // ------------------------------------------------------------------------
     // Step 6: Quality Gates Verification (G1–G7) (M8)
     // ------------------------------------------------------------------------
+    // Abstract and Conclusion are written last, from the sections approved above.
+    for (const sectionKey of ['abstract', 'conclusion'] as const) {
+      const written = await generateSynthesisSection({ projectId: project.id, snapshotId: snapshot.id, sectionKey, actor });
+      await decideSectionRevision({
+        projectId: project.id,
+        snapshotId: snapshot.id,
+        slrProjectId,
+        authorization: undefined,
+        actor,
+        sectionKey,
+        version: written.revision.version,
+        decision: 'APPROVED',
+        note: `H2 ${sectionKey} approved`,
+      });
+    }
+
     const verifResult = await runVerification({
       projectId: project.id,
       snapshotId: snapshot.id,

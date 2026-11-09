@@ -22,7 +22,7 @@ const draft = {
   sections: [
     {
       key: 'abstract', title: 'Abstract', order: 1, required: true, wordBudget: { min: 150, max: 300 },
-      sources: ['A10', 'other_sections'], generator: null,
+      sources: ['A10', 'other_sections'], generator: 'summary-llm@1',
       purpose: 'Summarise the review question, methods, main results and conclusion; written last from the other sections.',
     },
     {
@@ -47,7 +47,7 @@ const draft = {
     },
     {
       key: 'conclusion', title: 'Conclusion', order: 6, required: true, wordBudget: { min: 150, max: 400 },
-      sources: ['A10', 'other_sections', 'rq_findings'], generator: null,
+      sources: ['A10', 'other_sections', 'rq_findings'], generator: 'summary-llm@1',
       purpose: 'Answer the research questions and say what follows from the review.',
     },
   ],

@@ -9,6 +9,7 @@ import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
 import { draftRequiredSections } from '../helpers/draft-required.js';
+import { summaryMock } from '../helpers/summary-mock.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -55,6 +56,8 @@ beforeEach(() => {
           explanation: 'Premise entails claim.',
         };
       }
+      const summary = summaryMock(req);
+      if (summary) return summary;
       return { output: {} };
     }),
   );

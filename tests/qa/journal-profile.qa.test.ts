@@ -308,7 +308,7 @@ describe('consistency with the rest of the system', () => {
   it('the methods section key and generator match methods.service.ts', () => {
     const m = DEFAULT_JOURNAL_PROFILE.sections.find((s) => s.key === METHODS_SECTION);
     expect(m?.generator).toBe(METHODS_GENERATOR);
-    expect(DEFAULT_JOURNAL_PROFILE.sections.filter((s) => s.generator !== null).map((s) => s.key)).toEqual([METHODS_SECTION]);
+    expect(DEFAULT_JOURNAL_PROFILE.sections.filter((s) => s.generator !== null).map((s) => s.key)).toEqual(['abstract', METHODS_SECTION, 'conclusion']);
   });
   it('DOC DRIFT: mvp-scope section 5: Discussion uses limitations from A1 and A10', () => {
     const d = DEFAULT_JOURNAL_PROFILE.sections.find((s) => s.key === 'discussion')!;

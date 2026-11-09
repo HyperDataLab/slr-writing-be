@@ -8,6 +8,7 @@ import { setLlmProvider } from '../../src/modules/llm/llm.service.js';
 import { MockLlmProvider } from '../../src/modules/llm/mock.provider.js';
 import { importSnapshot } from '../../src/modules/snapshots/snapshot-import.service.js';
 import { draftRequiredSections } from '../helpers/draft-required.js';
+import { summaryMock } from '../helpers/summary-mock.js';
 import { FakeSlrBe } from '../slr-client/fake-slr-be.js';
 
 const app = createApp();
@@ -55,6 +56,8 @@ beforeEach(() => {
           explanation: 'Premise supports claim.',
         };
       }
+      const summary = summaryMock(req);
+      if (summary) return summary;
       return { output: {} };
     }),
   );
@@ -293,6 +296,89 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(res.body.error.code).toBe('SECTION_NOT_EDITABLE');
   });
 
+  describe('Abstract and Conclusion (written last, from the approved sections)', () => {
+    const answer = (text: string) => new MockLlmProvider((req) => {
+      if (req.promptTemplateId === 'abstract-draft' || req.promptTemplateId === 'conclusion-draft') return { text, usedSections: ['results'] };
+      return summaryMock(req) ?? { output: {} };
+    });
+
+    async function readyUpToH2(uid = alice) {
+      const { project, snapshot } = await setup(uid);
+      const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
+      await request(app).post(`${base}/blueprint`).set(as(uid)).send({});
+      await request(app).post(`${base}/blueprint/approve`).set(as(uid)).send({ version: 1 });
+      await request(app).post(`${base}/paragraph-plans`).set(as(uid)).send({});
+      return { project, snapshot, base };
+    }
+
+    it('refuses to write the Abstract while a source section is not approved', async () => {
+      const { base } = await readyUpToH2();
+      await request(app).post(`${base}/methods`).set(as(alice)).send({});
+      await request(app).post(`${base}/sections/results/draft`).set(as(alice)).send({});
+      const res = await request(app).post(`${base}/sections/abstract/draft`).set(as(alice)).send({});
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('SOURCE_SECTIONS_NOT_APPROVED');
+      expect(res.body.error.details.sections.map((x: { sectionKey: string }) => x.sectionKey)).toEqual(expect.arrayContaining(['methods', 'results']));
+    });
+
+    it('writes the Abstract and Conclusion once the sources are approved and records what they were written from', async () => {
+      const { base } = await readyUpToH2();
+      await draftRequiredSections(app, as(alice), base.split('/projects/')[1].split('/snapshots/')[0], base.split('/snapshots/')[1].split('/manuscript')[0], { approve: true });
+      const view = await request(app).get(`${base}/sections/abstract`).set(as(alice));
+      expect(view.status).toBe(200);
+      const facts = view.body.data.revision.facts;
+      expect(view.body.data.revision.generator).toBe('summary-llm@1');
+      expect(view.body.data.approval.status).toBe('APPROVED');
+      expect(facts.sourceSections.map((x: { sectionKey: string }) => x.sectionKey)).toEqual(expect.arrayContaining(['methods', 'results']));
+      expect(facts.paragraphs.length).toBeGreaterThan(0);
+      expect(facts.paragraphs.every((p: { usedEvidenceIds: string[] }) => p.usedEvidenceIds.length === 0)).toBe(true);
+      // Writing it again from the same sources stores nothing new and keeps the approval.
+      const again = await request(app).post(`${base}/sections/abstract/draft`).set(as(alice)).send({});
+      expect(again.status).toBe(200);
+      expect(again.body.data.created).toBe(false);
+    });
+
+    it('stores nothing when the model brings in a number the approved sections do not have', async () => {
+      const { base } = await readyUpToH2();
+      await draftRequiredSections(app, as(alice), base.split('/projects/')[1].split('/snapshots/')[0], base.split('/snapshots/')[1].split('/manuscript')[0], { approve: false });
+      for (const key of ['methods', 'results', 'introduction', 'discussion']) await request(app).post(`${base}/sections/${key}/approve`).set(as(alice)).send({ version: 1 });
+      setLlmProvider(answer('The review found that exactly 99 percent of all assistants always produce perfectly correct code in every language and every benchmark that was tested by the authors of the included studies, which is a very strong claim indeed and 99 is the figure.'));
+      const res = await request(app).post(`${base}/sections/abstract/draft`).set(as(alice)).send({});
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('LLM_UNGROUNDED_NUMBER');
+      expect((await request(app).get(`${base}/sections/abstract`).set(as(alice))).status).toBe(404);
+    });
+
+    it('blocks H3 while the Abstract is missing, and when a source changes after it was written', async () => {
+      const { base } = await readyUpToH2();
+      const projectId = base.split('/projects/')[1].split('/snapshots/')[0];
+      const snapshotId = base.split('/snapshots/')[1].split('/manuscript')[0];
+      await draftRequiredSections(app, as(alice), projectId, snapshotId, { approve: true, synthesis: false });
+      await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+      const missing = await request(app).get(`${base}/final/status`).set(as(alice));
+      expect(missing.body.data.canApprove).toBe(false);
+      expect(missing.body.data.requiredSections).toEqual(expect.arrayContaining(['abstract', 'conclusion']));
+      expect(missing.body.data.blockingReasons).toEqual(expect.arrayContaining([expect.stringContaining("Required section 'abstract' has not been drafted yet")]));
+
+      // Write them properly, verify, and H3 opens.
+      for (const key of ['abstract', 'conclusion']) {
+        await request(app).post(`${base}/sections/${key}/draft`).set(as(alice)).send({});
+        await request(app).post(`${base}/sections/${key}/approve`).set(as(alice)).send({ version: 1 });
+      }
+      await request(app).post(`${base}/verification/run`).set(as(alice)).send({});
+      const ready = await request(app).get(`${base}/final/status`).set(as(alice));
+      expect(ready.body.data.blockingReasons).toEqual([]);
+
+      // A source section edited afterwards makes the Abstract out of date.
+      await request(app).put(`${base}/sections/results`).set(as(alice)).send({ baseVersion: 1, markdown: 'Edited results text.' });
+      const stale = await request(app).get(`${base}/final/status`).set(as(alice));
+      expect(stale.body.data.canApprove).toBe(false);
+      expect(stale.body.data.blockingReasons).toEqual(
+        expect.arrayContaining([expect.stringMatching(/Section 'abstract' was written from earlier versions of: .*results/)]),
+      );
+    });
+  });
+
   it('blocks H3 and export when a section is edited after verification ran (stale report)', async () => {
     const { project, snapshot } = await prepareReadyManuscript();
     const base = `/api/projects/${project.id}/snapshots/${snapshot.id}/manuscript`;
@@ -459,10 +545,11 @@ describe('Module M9 — Submission Package Export & H3 Approval API', () => {
     expect(pkg.version).toBe(1);
     expect(pkg.packageHash).toHaveLength(64);
     expect(pkg.manifest).toHaveLength(7);
-    // Profile-required sections the engine cannot draft (abstract, conclusion) are disclosed in the package.
-    expect(pkg.bundle.aiDisclosure).toContain('Sections Not Included');
-    expect(pkg.bundle.aiDisclosure).toContain('`abstract`');
-    expect(pkg.bundle.metadata.missingProfileSections).toEqual(expect.arrayContaining(['abstract', 'conclusion']));
+    // Every section the profile requires is in the package, each under its own heading, in the profile's order.
+    expect(pkg.bundle.aiDisclosure).toContain('All sections required by the journal profile are included.');
+    expect(pkg.bundle.metadata.missingProfileSections).toEqual([]);
+    const headings = pkg.bundle.manuscript.split('\n').filter((line: string) => /^## /.test(line));
+    expect(headings).toEqual(['## Abstract', '## Introduction', '## Methods', '## Results', '## Discussion', '## Conclusion', '## References']);
     expect(pkg.manifest.map((m: any) => m.filename)).toEqual(
       expect.arrayContaining([
         'manuscript.md',

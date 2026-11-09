@@ -23,7 +23,7 @@ const digitValue = (char: string): string => {
   digitCache.set(char, value);
   return value;
 };
-const asciiDigits = (value: string): string => value.normalize('NFKC').replace(/\p{Nd}/gu, digitValue);
+export const asciiDigits = (value: string): string => value.normalize('NFKC').replace(/\p{Nd}/gu, digitValue);
 
 const digitRuns = (value: string): string[] => asciiDigits(value).match(/\d+/g) ?? [];
 
