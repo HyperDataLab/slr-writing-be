@@ -520,6 +520,20 @@ npm run test:live-smoke
 - Hướng dẫn chi tiết, phân tích hạn mức Google AI Studio và kết quả kiểm thử xem tại [`docs/LIVE_SMOKE_TEST_GUIDE.md`](./LIVE_SMOKE_TEST_GUIDE.md).
 - Kịch bản kiểm tra trực quan giao diện Frontend và bộ ảnh minh chứng 11 màn hình xem tại [`slr-writing-fe/docs/UI_VISUAL_VERIFICATION_GUIDE.md`](../../slr-writing-fe/docs/UI_VISUAL_VERIFICATION_GUIDE.md).
 
+### Khởi động Native Siêu nhẹ (Tiết kiệm >95% RAM, Không cần Docker)
+```bash
+# Khởi động toàn bộ (Mock SLR :5000 + Writing BE :5100 + Writing FE :5173) chỉ tốn ~170MB RAM
+npm run start:all
+
+# Hoặc double-click file start-writing-stack.bat tại thư mục gốc
+
+# Dừng toàn bộ và giải phóng 100% RAM:
+npm run stop:all
+# Hoặc double-click file stop-writing-stack.bat tại thư mục gốc
+```
+- Tự động kiểm tra PostgreSQL (hỗ trợ cả Cloud Neon miễn phí 0MB RAM lẫn Postgres cục bộ), dọn cổng mạng, chạy ngầm 3 dịch vụ, đo lường RAM thực tế và tự mở trình duyệt.
+- Hướng dẫn cấu hình Cloud Database Neon 0MB RAM xem tại [`docs/NO_DOCKER_LIGHTWEIGHT_GUIDE.md`](./NO_DOCKER_LIGHTWEIGHT_GUIDE.md).
+
 
 ### Migration với Prisma 7
 `prisma migrate dev` có lúc từ chối chạy trong môi trường không tương tác. Cách dùng được:

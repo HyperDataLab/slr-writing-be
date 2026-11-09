@@ -7,6 +7,8 @@ npm-debug.log*
 .DS_Store
 coverage/
 storage/
+logs/
+.dev-pids.json
 *.zip
 .mcp.json
 AGENTS.md
