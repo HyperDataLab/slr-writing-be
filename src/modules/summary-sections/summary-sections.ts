@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { showsNothing } from '../../shared/utils/invisible-text.js';
 import { hasUnstorableText } from '../../shared/utils/storable.js';
 import { buildPrompt, SAFETY_RULES } from '../llm/prompt.js';
+import { asciiDigits } from '../methods/methods-grounding.js';
 
 /**
  * Abstract and Conclusion are written last, from the sections a person has already approved (H2), not from the corpus.
@@ -89,6 +90,12 @@ const NUMBER = /\b\d+(?:\.\d+)?%?\b/g;
 const MARKER = /\[[^\]\s]{1,100}\]/g;
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 const stripPercent = (token: string) => (token.endsWith('%') ? token.slice(0, -1) : token);
+/**
+ * Digits of every script count as digits (fullwidth, superscript, Arabic-Indic, Devanagari...), and compatibility forms
+ * such as a fullwidth bracket are folded, so a number or a marker cannot hide in another script. Limits: a number written
+ * as a word ("ninety-nine") or glued to letters ("3rd", "RQ7") is not seen; the G4 gate has the same limits.
+ */
+const fold = (text: string): string => asciiDigits(text);
 
 export type SummaryValidation =
   | { ok: true; paragraphs: string[] }
@@ -97,8 +104,8 @@ export type SummaryValidation =
 /** Numbers the text may repeat: those of the approved sections, the PRISMA flow, and the counts the writer was shown. */
 export function allowedNumbers(input: SummaryInput, studyCount: number): Set<string> {
   const allowed = new Set<string>();
-  const add = (text: string) => {
-    for (const token of text.match(NUMBER) ?? []) {
+  const add = (raw: string) => {
+    for (const token of fold(raw).match(NUMBER) ?? []) {
       allowed.add(token);
       allowed.add(stripPercent(token));
     }
@@ -132,14 +139,14 @@ export function validateSummaryOutput(output: SummaryOutput, input: SummaryInput
     return { ok: false, code: 'LLM_OUTPUT_HEADING', message: 'The text contains a heading; the section heading is added when the manuscript is assembled' };
   }
 
-  const sourceText = input.sources.map((source) => source.markdown).join('\n');
-  const strayMarkers = [...new Set(output.text.match(MARKER) ?? [])].filter((marker) => !sourceText.includes(marker));
+  const sourceText = fold(input.sources.map((source) => source.markdown).join('\n'));
+  const strayMarkers = [...new Set(fold(output.text).match(MARKER) ?? [])].filter((marker) => !sourceText.includes(marker));
   if (strayMarkers.length > 0) {
     return { ok: false, code: 'LLM_HALLUCINATED_REFERENCE', message: `The text contains citation markers that no approved section has: ${strayMarkers.join(', ')}`, details: { markers: strayMarkers } };
   }
 
   const allowed = allowedNumbers(input, studyCount);
-  const strayNumbers = [...new Set(output.text.match(NUMBER) ?? [])].filter((token) => !allowed.has(token) && !allowed.has(stripPercent(token)));
+  const strayNumbers = [...new Set(fold(output.text).match(NUMBER) ?? [])].filter((token) => !allowed.has(token) && !allowed.has(stripPercent(token)));
   if (strayNumbers.length > 0) {
     return { ok: false, code: 'LLM_UNGROUNDED_NUMBER', message: `The text contains numbers that no approved section or the PRISMA flow has: ${strayNumbers.join(', ')}`, details: { numbers: strayNumbers } };
   }

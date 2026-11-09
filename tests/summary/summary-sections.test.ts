@@ -91,6 +91,18 @@ describe('validateSummaryOutput', () => {
     if (!result.ok) expect(result.details).toEqual({ numbers: ['99'] });
   });
 
+  it('sees numbers written in other scripts and in fullwidth or superscript forms', () => {
+    for (const hidden of ['９９', '٩٩', '९९', '⁹⁹']) {
+      expect(ok(`${words(40)} Accuracy reached ${hidden} percent.`)).toMatchObject({ ok: false, code: 'LLM_UNGROUNDED_NUMBER' });
+    }
+    // ...and recognises a grounded number written that way, since 5 and 7 are folded to the same digits.
+    expect(ok(`${words(40)} Accuracy reached ５７ percent.`)).toMatchObject({ ok: true });
+  });
+
+  it('folds a fullwidth bracket so a stray citation marker cannot hide', () => {
+    expect(ok(`${words(40)} See ［E-99］.`)).toMatchObject({ ok: false, code: 'LLM_HALLUCINATED_REFERENCE' });
+  });
+
   it('accepts a number from the PRISMA flow and the study and question counts', () => {
     expect(ok(`${words(40)} We included 6 studies, screened 120 records and answered 2 questions.`)).toMatchObject({ ok: true });
   });
