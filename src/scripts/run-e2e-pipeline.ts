@@ -22,6 +22,12 @@ const useLiveGemini = process.argv.includes('--live') && !!process.env.GEMINI_AP
 
 if (useLiveGemini) {
   console.log('[E2E Setup] Flag --live detected: Using Live Gemini LLM Provider.');
+  if (!env.LLM_RATE_LIMIT_RPM && !env.LLM_MIN_REQUEST_INTERVAL_MS) {
+    (env as any).LLM_RATE_LIMIT_RPM = 5;
+    console.log('[E2E Setup] Active Rate Limiter: 5 RPM (pacing requests at least 12s apart for Gemini Free Tier).');
+  } else {
+    console.log(`[E2E Setup] Active Rate Limiter: ${env.LLM_RATE_LIMIT_RPM} RPM / ${env.LLM_MIN_REQUEST_INTERVAL_MS} ms interval.`);
+  }
 } else {
   console.log('[E2E Setup] Using deterministic offline LLM Provider (pass --live to use Google Gemini).');
   setLlmProvider(

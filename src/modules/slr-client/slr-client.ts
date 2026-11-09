@@ -8,6 +8,10 @@ import {
 
 /** Artifacts the MVP writes from (docs/mvp-scope.md). Others are not fetched. */
 export const MVP_ARTIFACT_TYPES: ArtifactTypeName[] = ['A1', 'A2', 'A7', 'A10'];
+/** Artifacts strictly required to write from (Results from A1, Methods/PRISMA from A10). */
+export const REQUIRED_ARTIFACT_TYPES: ArtifactTypeName[] = ['A1', 'A10'];
+/** Optional artifacts (Quality Assessment A2, Thematic Extraction A7). Missing ones yield warnings but don't block. */
+export const OPTIONAL_ARTIFACT_TYPES: ArtifactTypeName[] = ['A2', 'A7'];
 
 /** slr-be run ids look like `run-20260101120000-ab12cd`; reject anything else before it reaches a URL. */
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -18,6 +22,13 @@ export interface SlrClientOptions {
   timeoutMs?: number;
   maxResponseBytes?: number;
   fetchImpl?: typeof fetch;
+}
+
+export interface SlrHealthStatus {
+  reachable: boolean;
+  baseUrl: string;
+  latencyMs?: number;
+  error?: string;
 }
 
 export interface SlrRequestContext {
@@ -183,6 +194,44 @@ export class SlrClient {
     return runs;
   }
 
+  /**
+   * Probes slr-be reachability with a short timeout.
+   * Never throws: returns reachability status, base URL, latency, and any error message.
+   */
+  async checkHealth(probeTimeoutMs = 3000): Promise<SlrHealthStatus> {
+    const start = Date.now();
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/health`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(probeTimeoutMs),
+      }).catch(async () => {
+        return this.fetchImpl(`${this.baseUrl}/health`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(probeTimeoutMs),
+        });
+      });
+      const latencyMs = Date.now() - start;
+      const isAlive = response.status < 500 || response.status === 503;
+      return {
+        reachable: isAlive,
+        baseUrl: this.baseUrl,
+        latencyMs,
+        ...(isAlive ? {} : { error: `Upstream HTTP ${response.status}` }),
+      };
+    } catch (error) {
+      const latencyMs = Date.now() - start;
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        reachable: false,
+        baseUrl: this.baseUrl,
+        latencyMs,
+        error: message,
+      };
+    }
+  }
+
   /** Fetches the run, its own corpus and the MVP artifacts it contains, in the shape the importer expects. */
   async fetchRun(slrProjectId: string, runId: string, ctx: SlrRequestContext = {}): Promise<ImportInput> {
     if (!isValidRunId(runId)) throw new AppError('Invalid run id', 400, 'INVALID_RUN_ID');
@@ -196,10 +245,19 @@ export class SlrClient {
     const corpus = await this.getParsed(`${base}/artifacts/corpus`, ctx, corpusSchema);
 
     const wanted = MVP_ARTIFACT_TYPES.filter((type) => run.artifacts.some((artifact) => artifact.artifact_type === type));
-    const fetched = await Promise.all(wanted.map(async (type) => [type, await this.getParsed(`${base}/artifacts/${type}`, ctx, artifactPayloadSchema)] as const));
+    const fetched = await Promise.all(
+      wanted.map(async (type) => {
+        const isRequired = REQUIRED_ARTIFACT_TYPES.includes(type);
+        const payload = isRequired
+          ? await this.getParsed(`${base}/artifacts/${type}`, ctx, artifactPayloadSchema)
+          : await this.getOptional(`${base}/artifacts/${type}`, ctx, artifactPayloadSchema);
+        return [type, payload] as const;
+      }),
+    );
 
     const artifacts: ImportInput['artifacts'] = {};
     for (const [type, payload] of fetched) {
+      if (!payload) continue;
       const listed = run.artifacts.find((artifact) => artifact.artifact_type === type);
       if (payload.artifact_id !== listed?.artifact_id) throw upstreamError(502, 'SLR_INVALID_RESPONSE', `slr-be returned a different ${type} than the run lists`);
       if (payload.artifact_type !== type) throw upstreamError(502, 'SLR_INVALID_RESPONSE', `slr-be returned ${payload.artifact_type} where ${type} was requested`);

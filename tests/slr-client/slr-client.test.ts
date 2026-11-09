@@ -153,6 +153,25 @@ describe('SlrClient.fetchRun', () => {
     expect(await code(fetchRun())).toBe('502:SLR_UPSTREAM_ERROR');
   });
 
+  it('fails with 404 when required artifact A1 is not found', async () => {
+    const input = buildSyntheticRun();
+    const base = fake.serveRun(PROJECT, input);
+    fake.json(`${base}/artifacts/A1`, { message: 'Not found' }, 404);
+    expect(await code(fetchRun())).toBe('404:SLR_NOT_FOUND');
+  });
+
+  it('succeeds and omits optional artifacts (A2, A7) when slr-be answers 404 for them', async () => {
+    const input = buildSyntheticRun();
+    const base = fake.serveRun(PROJECT, input);
+    fake.json(`${base}/artifacts/A2`, { message: 'Not found' }, 404);
+    fake.json(`${base}/artifacts/A7`, { message: 'Not found' }, 404);
+    const result = await fetchRun();
+    expect(result.artifacts.A1).toBeDefined();
+    expect(result.artifacts.A10).toBeDefined();
+    expect(result.artifacts.A2).toBeUndefined();
+    expect(result.artifacts.A7).toBeUndefined();
+  });
+
   it('rejects an artifact of a different type than requested', async () => {
     const input = buildSyntheticRun() as any;
     const base = fake.serveRun(PROJECT, input);
@@ -184,5 +203,28 @@ describe('SlrClient.fetchRun', () => {
   it('tolerates a trailing slash in the base URL', async () => {
     fake.serveRun(PROJECT, buildSyntheticRun());
     await expect(new SlrClient({ baseUrl: `${fake.baseUrl}///` }).fetchRun(PROJECT, RUN, auth)).resolves.toBeTruthy();
+  });
+});
+
+describe('SlrClient.checkHealth', () => {
+  it('reports reachable when slr-be answers /api/health', async () => {
+    fake.json('/api/health', { status: 'ok' });
+    const status = await client().checkHealth();
+    expect(status.reachable).toBe(true);
+    expect(status.baseUrl).toBe(fake.baseUrl);
+    expect(typeof status.latencyMs).toBe('number');
+  });
+
+  it('reports reachable even when /api/health is 404 but server responds', async () => {
+    // FakeSlrBe default is 404 for unregistered paths
+    const status = await client().checkHealth();
+    expect(status.reachable).toBe(true);
+  });
+
+  it('reports unreachable when slr-be host is down', async () => {
+    const dead = new SlrClient({ baseUrl: 'http://127.0.0.1:1', timeoutMs: 1000 });
+    const status = await dead.checkHealth(500);
+    expect(status.reachable).toBe(false);
+    expect(status.error).toBeTruthy();
   });
 });
