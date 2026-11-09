@@ -534,6 +534,14 @@ npm run stop:all
 - Tự động kiểm tra PostgreSQL (hỗ trợ cả Cloud Neon miễn phí 0MB RAM lẫn Postgres cục bộ), dọn cổng mạng, chạy ngầm 3 dịch vụ, đo lường RAM thực tế và tự mở trình duyệt.
 - Hướng dẫn cấu hình Cloud Database Neon 0MB RAM xem tại [`docs/NO_DOCKER_LIGHTWEIGHT_GUIDE.md`](./NO_DOCKER_LIGHTWEIGHT_GUIDE.md).
 
+### Xuất Bài Báo Chuẩn Học Thuật (Academic PDF)
+```bash
+# Chuyển đổi toàn văn bản thảo manuscript.md sang file paper.pdf chuẩn xuất bản
+npm run export:pdf
+```
+- Sử dụng Chromium Headless Print Engine kết hợp kiểu chữ học thuật (Times New Roman, căn đều 2 bên, tiêu đề IMRaD, trích dẫn liên kết DOI và khung tuyên bố đạo đức AI chuẩn ICMJE/COPE).
+- File đầu ra: [`docs/demo-export/paper.pdf`](./demo-export/paper.pdf) và `paper.pdf` tại thư mục gốc.
+
 
 ### Migration với Prisma 7
 `prisma migrate dev` có lúc từ chối chạy trong môi trường không tương tác. Cách dùng được:
