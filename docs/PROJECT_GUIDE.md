@@ -303,6 +303,7 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | Method | Đường dẫn | Mô tả | Kết quả |
 |---|---|---|---|
 | GET | `/health` | Kiểm tra sống | 200 |
+| GET | `/health/slr` | Kiểm tra kết nối upstream tới SLR backend (`SLR_API_BASE_URL`): `{reachable, baseUrl, latencyMs, error}` | 200 |
 | GET | `/llm/status` | Có mô hình sẵn sàng không và là mô hình nào (`configured`, `provider`, `model`). Không bao giờ trả khoá. Không có route gửi văn bản cho mô hình | 200; 401 |
 | GET | `/journal-profiles` | Danh sách profile khung bài báo (hiện có `generic-imrad`, luôn chưa xác minh) | 200; 401 |
 | GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 401; 404 `JOURNAL_PROFILE_NOT_FOUND` |
@@ -395,9 +396,15 @@ Envelope của `slr-be` **không nhất quán**: `{success,isSuccess,data,messag
 4. `synthesis/findings` có thể rỗng (researcher chưa viết kết luận theo RQ).
 5. PRISMA export và RQ findings **không đóng băng theo run** → phải sao chép vào snapshot lúc import.
 
-### Phòng thủ của client (`slr-client.ts`)
+### Phòng thủ và khả năng phục hồi của client (`slr-client.ts`)
 
-Kiểm tra `runId` bằng regex và chặn `slrProjectId` chỉ gồm dấu chấm; `redirect: 'error'` (token không bao giờ đi sang host khác); timeout mỗi request (`SLR_API_TIMEOUT_MS`, mặc định 15 s; chưa có tổng thời gian); giới hạn phản hồi (`SLR_API_MAX_RESPONSE_BYTES`, 50 MB); phản hồi 404 của PRISMA export/RQ findings = "không có" (bỏ qua), mọi lỗi khác làm hỏng import; kiểm tra `run_id`, `artifact_id`, `artifact_type` khớp với yêu cầu.
+- Kiểm tra `runId` bằng regex và chặn `slrProjectId` chỉ gồm dấu chấm.
+- `redirect: 'error'` (token không bao giờ đi sang host khác).
+- Timeout mỗi request (`SLR_API_TIMEOUT_MS`, mặc định 15 s); giới hạn phản hồi (`SLR_API_MAX_RESPONSE_BYTES`, 50 MB).
+- **Phục hồi linh hoạt với Artifact tùy chọn (A2, A7)**: A1 và A10 là artifact cốt lõi bắt buộc (`REQUIRED_ARTIFACT_TYPES`). Đối với A2 (Quality Assessment) và A7 (Thematic Extraction), nếu `slr-be` trả về 404 thì `getOptional` bỏ qua và để `input.artifacts[type]` trống; quy trình readiness sẽ đưa ra cảnh báo không chặn (`OPTIONAL_ARTIFACT_MISSING`) và snapshot vẫn được nhập với trạng thái `READY`. Ngược lại, nếu A1 hoặc A10 trả về 404, import sẽ lập tức ngắt với lỗi 404 `SLR_NOT_FOUND`.
+- Phản hồi 404 của PRISMA export / RQ findings được coi là "không có" (bỏ qua), mọi lỗi 5xx khác làm dừng import để tránh lưu dữ liệu không toàn vẹn.
+- Kiểm tra `run_id`, `artifact_id`, `artifact_type` khớp với yêu cầu.
+- **Chẩn đoán sức khỏe upstream (`checkHealth`)**: hàm thăm dò kết nối `GET /api/health` hoặc `/health` tới `SLR_API_BASE_URL` với timeout ngắn (3s), không ném ngoại lệ, trả về `{ reachable, baseUrl, latencyMs, error }` phục vụ endpoint `GET /api/health/slr` và giao diện chọn run của Frontend.
 
 ### Lấy một run thật để thử (môi trường dev)
 
