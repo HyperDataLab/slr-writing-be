@@ -518,6 +518,7 @@ npm run test:live-smoke
 ```
 - Tự động chạy toàn bộ pipeline 11 giai đoạn: khởi tạo project -> import snapshot từ `slr-be` -> sinh Methods chuẩn PRISMA -> duyệt H1 -> sinh kế hoạch đoạn (Paragraph Plans) -> sinh nháp Introduction, Results, Discussion bằng Gemini 3.5 Flash có pacing rate-limit -> duyệt H2 -> sinh nháp Conclusion, Abstract -> chạy bộ kiểm định chất lượng 7 cổng (G1–G7) -> duyệt H3 cuối cùng -> xuất và giải nén gói nộp bài PKZIP (`submission-package.zip`) gồm 7 file bất biến.
 - Hướng dẫn chi tiết, phân tích hạn mức Google AI Studio và kết quả kiểm thử xem tại [`docs/LIVE_SMOKE_TEST_GUIDE.md`](./LIVE_SMOKE_TEST_GUIDE.md).
+- Kịch bản kiểm tra trực quan giao diện Frontend và bộ ảnh minh chứng 11 màn hình xem tại [`slr-writing-fe/docs/UI_VISUAL_VERIFICATION_GUIDE.md`](../../slr-writing-fe/docs/UI_VISUAL_VERIFICATION_GUIDE.md).
 
 
 ### Migration với Prisma 7
