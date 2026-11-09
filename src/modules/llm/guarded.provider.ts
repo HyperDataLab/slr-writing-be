@@ -14,6 +14,12 @@ export interface GuardOptions {
   dailyTokenBudget: number;
   /** Longest a call may hold its place, whatever the provider does. 0 = no limit. */
   callTimeoutMs?: number;
+  /** Minimum milliseconds that must elapse between consecutive request dispatches. 0 = disabled. */
+  minRequestIntervalMs?: number;
+  /** Maximum requests per minute (RPM). If set > 0, enforces interval = ceil(60,000 / rpm). 0 = disabled. */
+  requestsPerMinute?: number;
+  /** Custom sleep implementation (defaults to setTimeout). Injected in tests to avoid wall-clock delays. */
+  sleep?: (ms: number) => Promise<void>;
   /** Replaced in tests. */
   now?: () => Date;
 }
@@ -31,15 +37,29 @@ function costOf(usage: LlmUsage | undefined, fallback: number): number {
  * Spending is counted in memory from the tokens the provider reports, failed calls included when they report any. Before a
  * call is allowed, the most it could cost (a quarter of the input characters plus the whole output ceiling) is reserved,
  * so calls running side by side cannot together go far past the budget. A budget smaller than one such call allows none.
+ *
+ * Rate limiting and request pacing guarantee that consecutive calls to the provider are spaced by at least
+ * minRequestIntervalMs (or derived from requestsPerMinute), avoiding HTTP 429 quota exhaustion on burst drafting.
  */
 export class GuardedLlmProvider implements LlmProvider {
   private readonly slots: Semaphore;
+  private readonly minRequestIntervalMs: number;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private nextAllowedAt = 0;
   private day = '';
   private spent = 0;
   private reserved = 0;
 
   constructor(private readonly inner: LlmProvider, private readonly options: GuardOptions) {
     this.slots = new Semaphore(options.maxConcurrency);
+    const fromRpm = options.requestsPerMinute && options.requestsPerMinute > 0
+      ? Math.ceil(60_000 / options.requestsPerMinute)
+      : 0;
+    const fromInterval = options.minRequestIntervalMs && options.minRequestIntervalMs > 0
+      ? options.minRequestIntervalMs
+      : 0;
+    this.minRequestIntervalMs = Math.max(fromRpm, fromInterval);
+    this.sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
   get name() { return this.inner.name; }
@@ -48,9 +68,23 @@ export class GuardedLlmProvider implements LlmProvider {
   /** Tokens spent today, for the status page and for tests. */
   get tokensSpentToday(): number { this.rollDay(); return this.spent; }
 
+  /** Configured minimum interval between requests in milliseconds (0 if pacing is off). */
+  get effectiveMinRequestIntervalMs(): number { return this.minRequestIntervalMs; }
+
   private rollDay() {
     const today = (this.options.now?.() ?? new Date()).toISOString().slice(0, 10);
     if (today !== this.day) { this.day = today; this.spent = 0; }
+  }
+
+  private async scheduleTurn(): Promise<void> {
+    if (this.minRequestIntervalMs <= 0) return;
+    const now = (this.options.now?.() ?? new Date()).getTime();
+    const scheduledAt = Math.max(now, this.nextAllowedAt);
+    this.nextAllowedAt = scheduledAt + this.minRequestIntervalMs;
+    const waitMs = scheduledAt - now;
+    if (waitMs > 0) {
+      await this.sleep(waitMs);
+    }
   }
 
   async generateStructured<T>(request: LlmRequest<T>): Promise<LlmResult<T>> {
@@ -68,6 +102,7 @@ export class GuardedLlmProvider implements LlmProvider {
       }
       this.reserved += estimate;
       try {
+        await this.scheduleTurn();
         const result = await this.withTimeout(this.inner.generateStructured({ ...request, maxOutputTokens }));
         this.rollDay();
         this.spent += costOf(result.usage, estimate);

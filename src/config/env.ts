@@ -56,6 +56,12 @@ const envSchema = z.object({
   LLM_MAX_OUTPUT_TOKENS: blankIsUnset(z.coerce.number().int().min(1).max(65_536).default(4_096)),
   LLM_MAX_INPUT_CHARS: blankIsUnset(z.coerce.number().int().min(1).max(2_000_000).default(200_000)),
   LLM_MAX_CONCURRENCY: blankIsUnset(z.coerce.number().int().min(1).max(32).default(4)),
+  // Maximum requests per minute (RPM) for LLM calls across the application. 0 = no limit (disabled).
+  // Recommended: 5 for Gemini Free Tier (e.g. 5 RPM on gemini-3.5-flash / gemini-3.6-flash).
+  LLM_RATE_LIMIT_RPM: blankIsUnset(z.coerce.number().int().min(0).max(10_000).default(0)),
+  // Explicit minimum interval in milliseconds between consecutive LLM request dispatches. 0 = disabled.
+  // If set > 0 along with LLM_RATE_LIMIT_RPM, the larger interval is enforced.
+  LLM_MIN_REQUEST_INTERVAL_MS: blankIsUnset(z.coerce.number().int().min(0).max(300_000).default(0)),
   // Most tokens (input and output) the process may spend per UTC day. 0 = no limit. Counted in memory: it starts again at 0 on restart.
   LLM_DAILY_TOKEN_BUDGET: blankIsUnset(z.coerce.number().int().min(0).default(0)),
   JSON_BODY_LIMIT: z.string().default('50mb'),

@@ -172,6 +172,23 @@ describe('a busy or failing service', () => {
     expect(sleeps).toEqual([3_000]);
   });
 
+  it('extracts retryDelay from Google RPC error details on 429 when Retry-After header is missing', async () => {
+    fake.enqueue(
+      FakeGemini.json(429, {
+        error: {
+          code: 429,
+          message: 'Resource exhausted',
+          status: 'RESOURCE_EXHAUSTED',
+          details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '4.5s' }],
+        },
+      }),
+      good,
+    );
+    const result = await provider().generateStructured(request());
+    expect(result.attempts).toBe(2);
+    expect(sleeps).toEqual([4_500]);
+  });
+
   it('never waits longer than 10 s, whatever Retry-After says', async () => {
     fake.enqueue(FakeGemini.json(429, {}, { 'retry-after': '86400' }), good);
     await provider().generateStructured(request());

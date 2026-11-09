@@ -192,9 +192,12 @@ export class GeminiProvider implements LlmProvider {
 
     if (response.status === 429) {
       const error = new LlmError('LLM_RATE_LIMITED', { retryable: true });
-      const asked = parseRetryAfter(response.headers.get('retry-after'));
+      let asked = parseRetryAfter(response.headers.get('retry-after'));
+      const refusal = await this.#logRefusal(response);
+      if (asked === undefined && refusal.retryAfterMs !== undefined) {
+        asked = refusal.retryAfterMs;
+      }
       if (asked !== undefined) this.#retryAfterMs.set(error, asked);
-      await this.#logRefusal(response);
       throw error;
     }
     if (response.status >= 500 || RETRYABLE_CLIENT_STATUSES.has(response.status)) {
@@ -222,16 +225,32 @@ export class GeminiProvider implements LlmProvider {
    * The service says why it refused (an unknown model, a key that is not valid). That is for whoever runs the server,
    * so it goes to the log, cut short and with the key, or any long part of it, removed, and never into an answer to a user.
    */
-  async #logRefusal(response: Response): Promise<void> {
+  async #logRefusal(response: Response): Promise<{ reason: string; retryAfterMs?: number }> {
     let reason = '';
+    let retryAfterMs: number | undefined;
     try {
       const text = (await this.#readLimited(response, 4_096)).slice(0, 2_000);
-      const message = (JSON.parse(text) as { error?: { message?: unknown; status?: unknown } }).error;
+      const message = (JSON.parse(text) as { error?: { message?: unknown; status?: unknown; details?: unknown[] } }).error;
       reason = [message?.status, message?.message].filter((part) => typeof part === 'string').join(': ');
+      if (Array.isArray(message?.details)) {
+        for (const detail of message.details) {
+          if (detail && typeof detail === 'object' && typeof (detail as Record<string, unknown>).retryDelay === 'string') {
+            const rawDelay = (detail as Record<string, unknown>).retryDelay as string;
+            const match = /^([0-9]+(?:\.[0-9]+)?)s?$/i.exec(rawDelay.trim());
+            if (match) {
+              const seconds = parseFloat(match[1]);
+              if (Number.isFinite(seconds) && seconds > 0) {
+                retryAfterMs = Math.round(seconds * 1000);
+              }
+            }
+          }
+        }
+      }
     } catch {
       await response.body?.cancel().catch(() => undefined);
     }
     logger.warn({ status: response.status, model: this.model, reason: redactKey(reason, this.#apiKey).slice(0, 400) }, 'The language model service refused a request');
+    return { reason, retryAfterMs };
   }
 
   async #readLimited(response: Response, overrideLimit?: number): Promise<string> {

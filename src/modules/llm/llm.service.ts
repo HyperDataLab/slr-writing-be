@@ -18,6 +18,8 @@ const guard = (inner: LlmProvider) => new GuardedLlmProvider(inner, {
   dailyTokenBudget: env.LLM_DAILY_TOKEN_BUDGET,
   // A little longer than the provider's own limit, so the provider's clean timeout wins when it can.
   callTimeoutMs: env.LLM_TOTAL_TIMEOUT_MS + 5_000,
+  requestsPerMinute: env.LLM_RATE_LIMIT_RPM,
+  minRequestIntervalMs: env.LLM_MIN_REQUEST_INTERVAL_MS,
 });
 
 function fromSettings(): GuardedLlmProvider | null {
