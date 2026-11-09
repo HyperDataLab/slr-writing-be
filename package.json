@@ -21,6 +21,7 @@
     "db:studio": "prisma studio",
     "e2e:demo": "tsx src/scripts/run-e2e-pipeline.ts",
     "test:live-smoke": "tsx src/scripts/live-http-smoke.ts",
+    "export:pdf": "node scripts/generate-paper-pdf.cjs",
     "start:all": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-dev.ps1",
     "stop:all": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-dev.ps1"
   },

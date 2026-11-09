@@ -10,6 +10,7 @@ storage/
 logs/
 .dev-pids.json
 *.zip
+/paper.pdf
 .mcp.json
 AGENTS.md
 
