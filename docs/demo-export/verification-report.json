@@ -1,0 +1,133 @@
+{
+  "reportId": "141207f0-305f-4e3d-ad56-fd266aa1ddb0",
+  "version": 2,
+  "status": "PASSED_WITH_WARNINGS",
+  "runAt": "2026-11-09T07:28:22.213Z",
+  "summary": {
+    "failed": 0,
+    "notRun": 0,
+    "passed": 6,
+    "warnings": 1,
+    "totalGates": 7,
+    "needsReview": 0,
+    "notApplicable": 0,
+    "warningIssues": 2,
+    "blockingIssues": 0,
+    "verifiedContentHash": "92a9034347bfa2830c3d32ece800d8026d1c84e4f63db99882e48d78652ad003"
+  },
+  "gates": {
+    "G1": {
+      "name": "Citation Integrity & Registry Grounding",
+      "gateId": "G1",
+      "status": "PASS",
+      "details": {
+        "totalCitations": 28,
+        "unresolvedCount": 0,
+        "resolvedCitations": 28
+      },
+      "message": "All 28 citations successfully resolved to valid snapshot entities.",
+      "severity": "BLOCKING",
+      "evaluatedAt": "2026-11-09T07:26:05.281Z",
+      "issuesCount": 0
+    },
+    "G2": {
+      "name": "Source Quote Verbatim Fidelity",
+      "gateId": "G2",
+      "status": "PASS",
+      "details": {
+        "verifiedCount": 11,
+        "quotedItemsCount": 11
+      },
+      "message": "All 11 direct quotes verified against source text hashes.",
+      "severity": "WARNING",
+      "evaluatedAt": "2026-11-09T07:26:05.282Z",
+      "issuesCount": 0
+    },
+    "G3": {
+      "name": "PRISMA & Quantitative Flow Reconciliation",
+      "gateId": "G3",
+      "status": "PASS",
+      "details": {
+        "corpusCount": 6,
+        "prismaCount": 6
+      },
+      "message": "PRISMA flow count (6 studies) reconciles with corpus.",
+      "severity": "BLOCKING",
+      "evaluatedAt": "2026-11-09T07:26:05.282Z",
+      "issuesCount": 0
+    },
+    "G4": {
+      "name": "Ungrounded Numerical Claims Audit",
+      "gateId": "G4",
+      "status": "PASS",
+      "details": {
+        "ungroundedCount": 0,
+        "totalAuthorizedFigures": 34
+      },
+      "message": "All numerical figures in drafted prose are grounded in snapshot facts.",
+      "severity": "BLOCKING",
+      "evaluatedAt": "2026-11-09T07:26:05.283Z",
+      "issuesCount": 0
+    },
+    "G5": {
+      "name": "Evidence Entailment & Contradiction Review",
+      "gateId": "G5",
+      "status": "WARNING",
+      "details": {
+        "issueCount": 2,
+        "evaluatedCount": 5
+      },
+      "message": "Found 2 potential entailment or contradiction issues.",
+      "severity": "BLOCKING",
+      "evaluatedAt": "2026-11-09T07:28:22.040Z",
+      "issuesCount": 2
+    },
+    "G6": {
+      "name": "Claim Strength & Hedging Alignment",
+      "gateId": "G6",
+      "status": "PASS",
+      "details": {
+        "issueCount": 0,
+        "qualifiedPlanCount": 6
+      },
+      "message": "All drafted paragraphs align with designated scientific claim strength & hedging rules.",
+      "severity": "WARNING",
+      "evaluatedAt": "2026-11-09T07:28:22.053Z",
+      "issuesCount": 0
+    },
+    "G7": {
+      "name": "Research Question (RQ) Coverage Audit",
+      "gateId": "G7",
+      "status": "PASS",
+      "details": {
+        "totalRQs": 3,
+        "uncoveredRQs": 0,
+        "hollowSections": [],
+        "missingSections": [],
+        "notApplicableRQs": []
+      },
+      "message": "All 3 research questions are addressed by drafted paragraphs.",
+      "severity": "BLOCKING",
+      "evaluatedAt": "2026-11-09T07:28:22.056Z",
+      "issuesCount": 0
+    }
+  },
+  "issues": [
+    {
+      "id": "430ef327-ee48-4bd2-9a6b-f94a5b994865",
+      "gateId": "G5",
+      "target": "cit-results-P-claim:efC0ir0a0hTezIGP1QyF-01-E-01",
+      "message": "NLI evaluation encountered transient issue: The language model answer did not have the expected shape",
+      "severity": "WARNING",
+      "sectionKey": "results"
+    },
+    {
+      "id": "d7c2998b-e41b-40cc-a9d3-14869ee56764",
+      "gateId": "G5",
+      "target": "cit-results-P-claim:efC0ir0a0hTezIGP1QyF-02-E-02",
+      "message": "NLI evaluation encountered transient issue: The language model answer did not have the expected shape",
+      "severity": "WARNING",
+      "sectionKey": "results"
+    }
+  ]
+}
