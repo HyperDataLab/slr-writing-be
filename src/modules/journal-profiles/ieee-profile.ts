@@ -95,3 +95,4 @@ const draft = {
 };
 
 export const IEEE_JOURNAL_PROFILE: JournalProfile = deepFreeze(journalProfileSchema.parse(draft));
+

@@ -51,3 +51,4 @@ describe('IEEE Conference Journal Profile', () => {
     expect(list[0].id).toBe('generic-imrad');
   });
 });
+

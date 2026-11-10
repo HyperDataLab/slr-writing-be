@@ -88,3 +88,4 @@ Các trích dẫn trong văn bản được ánh xạ chính xác vào danh mụ
 * `[4]` C. S. Xia et al., *"Automated Program Repair in the Era of Large Pre-trained Language Models"*, Proc. ICSE 2023.
 * `[5]` Y. Fu et al., *"Security Weaknesses of Copilot Generated Code in GitHub Projects"*, ACM TOSEM, 2023.
 * `[6]` C. Jimenez et al., *"SWE-bench: Can Language Models Resolve Real-World GitHub Issues?"*, Proc. ICLR 2024.
+
