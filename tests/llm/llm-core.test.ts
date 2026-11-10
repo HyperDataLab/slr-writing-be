@@ -273,4 +273,105 @@ describe('GuardedLlmProvider', () => {
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((r) => r.status === 'rejected' && (r.reason as LlmError).code === 'LLM_BUDGET_EXCEEDED')).toHaveLength(3);
   });
+
+  describe('request pacing and rate limiting', () => {
+    it('computes effective interval from requestsPerMinute or minRequestIntervalMs', () => {
+      const g1 = new GuardedLlmProvider(fixed(), { ...options, requestsPerMinute: 6 });
+      expect(g1.effectiveMinRequestIntervalMs).toBe(10_000);
+
+      const g2 = new GuardedLlmProvider(fixed(), { ...options, minRequestIntervalMs: 5_000 });
+      expect(g2.effectiveMinRequestIntervalMs).toBe(5_000);
+
+      const g3 = new GuardedLlmProvider(fixed(), { ...options, requestsPerMinute: 6, minRequestIntervalMs: 15_000 });
+      expect(g3.effectiveMinRequestIntervalMs).toBe(15_000);
+
+      const g4 = new GuardedLlmProvider(fixed(), options);
+      expect(g4.effectiveMinRequestIntervalMs).toBe(0);
+    });
+
+    it('paces consecutive requests by delaying them with sleep', async () => {
+      let nowTime = 1_000_000;
+      const sleeps: number[] = [];
+      const fakeSleep = async (ms: number) => {
+        sleeps.push(ms);
+        nowTime += ms;
+      };
+
+      const guarded = new GuardedLlmProvider(fixed(), {
+        ...options,
+        minRequestIntervalMs: 12_000,
+        now: () => new Date(nowTime),
+        sleep: fakeSleep,
+      });
+
+      // Call 1 at nowTime = 1_000_000: immediate, nextAllowedAt becomes 1_012_000
+      await guarded.generateStructured(request());
+      expect(sleeps).toEqual([]);
+
+      // Call 2 arrives at nowTime = 1_002_000 (2s later): must sleep 10s (until 1_012_000)
+      nowTime = 1_002_000;
+      await guarded.generateStructured(request());
+      expect(sleeps).toEqual([10_000]);
+
+      // Call 3 arrives at nowTime = 1_050_000 (well after nextAllowedAt 1_024_000): immediate
+      nowTime = 1_050_000;
+      await guarded.generateStructured(request());
+      expect(sleeps).toEqual([10_000]);
+    });
+
+    it('paces concurrent requests sequentially in slots', async () => {
+      let nowTime = 1_000_000;
+      const sleeps: number[] = [];
+      const dispatchedAt: number[] = [];
+
+      const sleepQueue: Array<{ ms: number; resolve: () => void }> = [];
+      const fakeSleep = (ms: number) => new Promise<void>((resolve) => {
+        sleeps.push(ms);
+        sleepQueue.push({ ms, resolve });
+      });
+
+      const trackingInner: LlmProvider = {
+        name: 'tracking',
+        model: 'track-1',
+        async generateStructured<T>(req: LlmRequest<T>): Promise<LlmResult<T>> {
+          dispatchedAt.push(nowTime);
+          return fixed().generateStructured(req);
+        },
+      };
+
+      const guarded = new GuardedLlmProvider(trackingInner, {
+        ...options,
+        maxConcurrency: 4,
+        requestsPerMinute: 5, // 12,000 ms interval
+        now: () => new Date(nowTime),
+        sleep: fakeSleep,
+      });
+
+      // 3 concurrent requests initiated simultaneously at nowTime = 1_000_000
+      const p1 = guarded.generateStructured(request());
+      const p2 = guarded.generateStructured(request());
+      const p3 = guarded.generateStructured(request());
+
+      // Let p1 run immediately (it requires 0ms sleep)
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(dispatchedAt).toEqual([1_000_000]);
+      expect(sleeps).toEqual([12_000, 24_000]);
+
+      // Step virtual time to 1_012_000 and resolve p2's sleep
+      nowTime = 1_012_000;
+      sleepQueue.shift()?.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(dispatchedAt).toEqual([1_000_000, 1_012_000]);
+
+      // Step virtual time to 1_024_000 and resolve p3's sleep
+      nowTime = 1_024_000;
+      sleepQueue.shift()?.resolve();
+      const results = await Promise.all([p1, p2, p3]);
+
+      expect(results).toHaveLength(3);
+      expect(dispatchedAt).toEqual([1_000_000, 1_012_000, 1_024_000]);
+    });
+  });
 });

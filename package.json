@@ -19,7 +19,13 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "e2e:demo": "tsx src/scripts/run-e2e-pipeline.ts"
+    "e2e:demo": "tsx src/scripts/run-e2e-pipeline.ts",
+    "test:live-smoke": "tsx src/scripts/live-http-smoke.ts",
+    "export:pdf": "node scripts/generate-paper-pdf.cjs --profile=all",
+    "export:pdf:ieee": "node scripts/generate-paper-pdf.cjs --profile=ieee",
+    "export:pdf:imrad": "node scripts/generate-paper-pdf.cjs --profile=imrad",
+    "start:all": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-dev.ps1",
+    "stop:all": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-dev.ps1"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

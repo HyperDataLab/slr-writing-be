@@ -15,6 +15,14 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Service is up' } },
       },
     },
+    '/api/health/slr': {
+      get: {
+        tags: ['Health'],
+        summary: 'Upstream SLR backend reachability check',
+        description: 'Probes the configured SLR backend (SLR_API_BASE_URL) and returns reachability, latency, and status.',
+        responses: { '200': { description: 'Upstream connectivity status' } },
+      },
+    },
     '/api/llm/status': {
       get: {
         tags: ['LLM'], summary: 'Whether a language model is ready, and which',

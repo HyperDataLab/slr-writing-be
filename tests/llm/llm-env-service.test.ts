@@ -54,14 +54,15 @@ describe('settings', () => {
     expect(parsed).toMatchObject({
       GEMINI_MODEL: 'gemini-3.5-flash', GEMINI_THINKING_BUDGET: 0, LLM_TIMEOUT_MS: 60_000, LLM_MAX_RETRIES: 2,
       LLM_MAX_OUTPUT_TOKENS: 4_096, LLM_MAX_INPUT_CHARS: 200_000, LLM_MAX_CONCURRENCY: 4, LLM_DAILY_TOKEN_BUDGET: 0,
+      LLM_RATE_LIMIT_RPM: 0, LLM_MIN_REQUEST_INTERVAL_MS: 0,
     });
     expect(parseEnv({ ...dev, GEMINI_THINKING_BUDGET: '' }).GEMINI_THINKING_BUDGET).toBe(0);
     expect(parseEnv(dev).LLM_TOTAL_TIMEOUT_MS).toBe(120_000);
   });
 
   it('treats a blank number as its default, not as 0', () => {
-    const blank = parseEnv({ ...dev, LLM_MAX_RETRIES: '', LLM_TIMEOUT_MS: ' ', LLM_TOTAL_TIMEOUT_MS: '', LLM_MAX_OUTPUT_TOKENS: '', LLM_MAX_INPUT_CHARS: '', LLM_MAX_CONCURRENCY: '', LLM_DAILY_TOKEN_BUDGET: '' });
-    expect(blank).toMatchObject({ LLM_MAX_RETRIES: 2, LLM_TIMEOUT_MS: 60_000, LLM_TOTAL_TIMEOUT_MS: 120_000, LLM_MAX_OUTPUT_TOKENS: 4_096, LLM_MAX_INPUT_CHARS: 200_000, LLM_MAX_CONCURRENCY: 4, LLM_DAILY_TOKEN_BUDGET: 0 });
+    const blank = parseEnv({ ...dev, LLM_MAX_RETRIES: '', LLM_TIMEOUT_MS: ' ', LLM_TOTAL_TIMEOUT_MS: '', LLM_MAX_OUTPUT_TOKENS: '', LLM_MAX_INPUT_CHARS: '', LLM_MAX_CONCURRENCY: '', LLM_DAILY_TOKEN_BUDGET: '', LLM_RATE_LIMIT_RPM: '', LLM_MIN_REQUEST_INTERVAL_MS: '' });
+    expect(blank).toMatchObject({ LLM_MAX_RETRIES: 2, LLM_TIMEOUT_MS: 60_000, LLM_TOTAL_TIMEOUT_MS: 120_000, LLM_MAX_OUTPUT_TOKENS: 4_096, LLM_MAX_INPUT_CHARS: 200_000, LLM_MAX_CONCURRENCY: 4, LLM_DAILY_TOKEN_BUDGET: 0, LLM_RATE_LIMIT_RPM: 0, LLM_MIN_REQUEST_INTERVAL_MS: 0 });
   });
 
   it('refuses a key that cannot be sent in a header', () => {
@@ -78,6 +79,8 @@ describe('settings', () => {
     ['LLM_MAX_INPUT_CHARS', '0'], ['LLM_MAX_INPUT_CHARS', '2000001'],
     ['LLM_MAX_CONCURRENCY', '0'], ['LLM_MAX_CONCURRENCY', '33'],
     ['LLM_DAILY_TOKEN_BUDGET', '-1'], ['LLM_DAILY_TOKEN_BUDGET', 'lots'],
+    ['LLM_RATE_LIMIT_RPM', '-1'], ['LLM_RATE_LIMIT_RPM', '10001'],
+    ['LLM_MIN_REQUEST_INTERVAL_MS', '-1'], ['LLM_MIN_REQUEST_INTERVAL_MS', '300001'],
     ['GEMINI_THINKING_BUDGET', '-1'], ['GEMINI_THINKING_BUDGET', '24577'],
   ])('refuses %s = %j', (key, value) => {
     expect(() => parseEnv({ ...dev, [key]: value })).toThrow();

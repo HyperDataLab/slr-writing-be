@@ -7,6 +7,12 @@ npm-debug.log*
 .DS_Store
 coverage/
 storage/
+logs/
+.dev-pids.json
+*.zip
+/paper.pdf
+/paper-ieee.pdf
+/paper-imrad.pdf
 .mcp.json
 AGENTS.md
 

@@ -1,0 +1,144 @@
+{
+  "manuscriptId": "b8f26023-87e4-4d84-b337-fb4c9ea5ccf8",
+  "blueprint": {
+    "version": 1,
+    "profileId": "generic-imrad",
+    "profileVersion": 1,
+    "origin": "generated",
+    "createdAt": "2026-11-09T07:10:09.389Z"
+  },
+  "sections": [
+    {
+      "sectionKey": "methods",
+      "version": 1,
+      "generator": "methods-template@1",
+      "contentHash": "sha256:c91ccc35b259db7396f58b55a0090a6501a475cb13d6de8f310117f33f0439ae",
+      "createdAt": "2026-11-09T07:10:03.901Z"
+    },
+    {
+      "sectionKey": "introduction",
+      "version": 1,
+      "generator": "llm-draft@1",
+      "contentHash": "sha256:4a56c0895fafa3f0eb9c10d67d9e9d81289d6e9a2c096bb9a7192e6638e20bf5",
+      "createdAt": "2026-11-09T07:13:12.331Z"
+    },
+    {
+      "sectionKey": "discussion",
+      "version": 1,
+      "generator": "llm-draft@1",
+      "contentHash": "sha256:5f1db42e61479e903de99f7a3418acca3e2e89fd923e9d30207007c88eb27c5b",
+      "createdAt": "2026-11-09T07:13:41.107Z"
+    },
+    {
+      "sectionKey": "results",
+      "version": 1,
+      "generator": "llm-draft@1",
+      "contentHash": "sha256:868fa7d08c51c98d6d253eab5f06a25efb7d9e3d754f5b0e67cca519f2d9d94f",
+      "createdAt": "2026-11-09T07:14:05.771Z"
+    },
+    {
+      "sectionKey": "conclusion",
+      "version": 1,
+      "generator": "summary-llm@1",
+      "contentHash": "sha256:dd841cd861a9aaa069224b462ff981edc71d7933c298b190ee5c771801b12aec",
+      "createdAt": "2026-11-09T07:14:58.032Z"
+    },
+    {
+      "sectionKey": "abstract",
+      "version": 1,
+      "generator": "summary-llm@1",
+      "contentHash": "sha256:6009ffebd18b747e4f15a100d05d523d54a2674af647c72c1c007ec88211cf26",
+      "createdAt": "2026-11-09T07:25:39.361Z"
+    }
+  ],
+  "approvals": [
+    {
+      "stage": "H1",
+      "seq": 7832,
+      "decision": "APPROVED",
+      "targetKind": "blueprint_revision",
+      "targetId": "f3660523-1392-4f28-ba6d-079a98d69d04",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "Approved via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:12:50.744Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7833,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "5f5f3a28-55d5-42ea-b936-5719724d2ad6",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:14:28.416Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7834,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "40f710c3-1e1a-41c3-8e2c-c2ed721a2aa1",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:14:28.485Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7835,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "b126004e-cf41-4757-8d18-39fe8e0879cd",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:14:28.540Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7836,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "4d142f84-1175-4bfe-8433-f76ccf0cc30f",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:14:28.605Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7837,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "41942370-dc86-4d34-a08c-3beaa1aa9e87",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved conclusion via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:19:10.418Z"
+    },
+    {
+      "stage": "H2",
+      "seq": 7838,
+      "decision": "APPROVED",
+      "targetKind": "section_revision",
+      "targetId": "1e1b0399-0fc0-495d-aae2-063b539528c4",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "H2 approved abstract via Live Smoke Test",
+      "decidedAt": "2026-11-09T07:25:59.705Z"
+    },
+    {
+      "stage": "H3",
+      "seq": 7839,
+      "decision": "APPROVED",
+      "targetKind": "manuscript_final",
+      "targetId": "b8f26023-87e4-4d84-b337-fb4c9ea5ccf8",
+      "slrRole": "OWNER",
+      "decidedBy": "dev_user",
+      "note": "Approved final manuscript drafted via Live Gemini 3.5 Flash Smoke Test",
+      "decidedAt": "2026-11-09T07:28:48.768Z"
+    }
+  ]
+}
