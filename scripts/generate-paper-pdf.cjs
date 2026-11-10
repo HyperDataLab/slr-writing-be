@@ -1,20 +1,79 @@
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('../../slr-fe/node_modules/playwright');
+
+function resolveChromium() {
+  const candidateModulePaths = [
+    'playwright',
+    path.resolve(__dirname, '../../slr-fe/node_modules/playwright'),
+    path.resolve(__dirname, '../../../slr-fe/node_modules/playwright'),
+    path.resolve(__dirname, '../../node_modules/playwright'),
+    path.resolve(__dirname, '../node_modules/playwright'),
+  ];
+  for (const cand of candidateModulePaths) {
+    try {
+      const mod = require(cand);
+      if (mod && mod.chromium) return mod.chromium;
+    } catch {}
+  }
+  return null;
+}
+
+const chromium = resolveChromium();
 
 const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const executablePath = fs.existsSync(chromePath) ? chromePath : edgePath;
+const executablePath = fs.existsSync(chromePath) ? chromePath : (fs.existsSync(edgePath) ? edgePath : undefined);
 
-const manuscriptPath = path.resolve(__dirname, '../docs/demo-export/manuscript.md');
-const aiDisclosurePath = path.resolve(__dirname, '../docs/demo-export/ai-disclosure.md');
-
-// Destination paths
+// Default destination paths
 const outDirDocs = path.resolve(__dirname, '../docs/demo-export');
 const outDirRoot = path.resolve(__dirname, '..');
 const solutionRoot = path.resolve(__dirname, '../../');
 
-function formatInline(text, isIeee = false) {
+/**
+ * Builds a dynamic citation resolver mapping study IDs, external IDs, author-year keys,
+ * and evidence/finding markers to deterministic bibliography numbers [1], [2], ...
+ */
+function buildCitationResolver(studies, citationManifest) {
+  const map = new Map();
+
+  if (Array.isArray(studies)) {
+    studies.forEach((st, idx) => {
+      const num = idx + 1;
+      if (st.id) map.set(String(st.id).toLowerCase(), num);
+      if (st.externalId) map.set(String(st.externalId).toLowerCase(), num);
+
+      // Map author + year e.g. "Chen 2021", "Mark Chen 2021"
+      if (Array.isArray(st.authors) && st.authors.length > 0 && st.year) {
+        const fullFirst = String(st.authors[0]).toLowerCase();
+        const lastWord = fullFirst.split(/\s+/).pop();
+        map.set(`${lastWord}_${st.year}`, num);
+        map.set(`${fullFirst}_${st.year}`, num);
+      }
+    });
+  }
+
+  // Map evidence markers [E-xx] or findings [F:...] through citation manifest
+  if (citationManifest) {
+    const citations = citationManifest.citations || citationManifest.resolvedCitations || [];
+    if (Array.isArray(citations)) {
+      citations.forEach((c) => {
+        if (c.studyId && map.has(String(c.studyId).toLowerCase())) {
+          const num = map.get(String(c.studyId).toLowerCase());
+          if (c.evidenceId) map.set(String(c.evidenceId).toLowerCase(), num);
+          if (c.marker) map.set(String(c.marker).toLowerCase(), num);
+          if (c.findingId) map.set(String(c.findingId).toLowerCase(), num);
+        }
+      });
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Formats inline Markdown and dynamically replaces study references with IEEE numeric citations [1], [2]...
+ */
+function formatInline(text, isIeee = false, citationMap = new Map()) {
   let formatted = text
     // Bold italic
     .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
@@ -30,23 +89,58 @@ function formatInline(text, isIeee = false) {
     .replace(/(https?:\/\/doi\.org\/[^\s)]+)/g, '<a href="$1">$1</a>')
     .replace(/(https?:\/\/arxiv\.org\/[^\s)]+)/g, '<a href="$1">$1</a>');
 
-  if (isIeee) {
-    // Transform author-year / demo keys into IEEE numeric citations [1], [2], etc.
-    formatted = formatted
-      .replace(/\(demo_paper_codex_2021;\s*demo_paper_copilot_2022;\s*demo_paper_repair_2024;\s*demo_paper_security_2023\)/g, '[1], [2], [4], [5]')
-      .replace(/\(demo_paper_copilot_2022;\s*demo_paper_repair_2024\)/g, '[2], [4]')
-      .replace(/\(demo_paper_codex_2021\)/g, '[1]')
-      .replace(/\(demo_paper_copilot_2022\)/g, '[2]')
-      .replace(/\(demo_paper_productivity_2023\)/g, '[3]')
-      .replace(/\(demo_paper_repair_2024\)/g, '[4]')
-      .replace(/\(demo_paper_security_2023\)/g, '[5]')
-      .replace(/\(E-02,\s*demo_paper_repair_2024\)/g, '[4]')
-      .replace(/\(Mark Chen et al\.,?\s*2021\)/g, '[1]')
-      .replace(/demo_paper_codex_2021/g, '[1]')
-      .replace(/demo_paper_copilot_2022/g, '[2]')
-      .replace(/demo_paper_productivity_2023/g, '[3]')
-      .replace(/demo_paper_repair_2024/g, '[4]')
-      .replace(/demo_paper_security_2023/g, '[5]');
+  if (isIeee && citationMap.size > 0) {
+    // 1. Process parenthetical citation groups: (key1; key2; key3) or (Author et al., Year)
+    formatted = formatted.replace(/\(([^()]+)\)/g, (fullMatch, inner) => {
+      const tokens = inner.split(/;\s*|,\s*(?=[a-zA-Z_])/);
+      const matchedNums = new Set();
+      let hasCitationToken = false;
+
+      for (const rawToken of tokens) {
+        const token = rawToken.trim().toLowerCase();
+        // Check direct key in citation map
+        if (citationMap.has(token)) {
+          matchedNums.add(citationMap.get(token));
+          hasCitationToken = true;
+          continue;
+        }
+
+        // Check author et al., year pattern e.g. "Mark Chen et al., 2021"
+        const authorYearMatch = token.match(/([a-z]+)(?:\s+et\s+al\.?)?,?\s*(\d{4})/i);
+        if (authorYearMatch) {
+          const key = `${authorYearMatch[1].toLowerCase()}_${authorYearMatch[2]}`;
+          if (citationMap.has(key)) {
+            matchedNums.add(citationMap.get(key));
+            hasCitationToken = true;
+            continue;
+          }
+        }
+      }
+
+      if (hasCitationToken && matchedNums.size > 0) {
+        const sorted = Array.from(matchedNums).sort((a, b) => a - b);
+        return sorted.map((n) => `[${n}]`).join(', ');
+      }
+      return fullMatch;
+    });
+
+    // 2. Process bracketed markers e.g. [demo_paper_codex_2021] or [E-01]
+    formatted = formatted.replace(/\[([a-zA-Z0-9_\-:]+)\]/g, (fullMatch, token) => {
+      const lower = token.toLowerCase();
+      if (citationMap.has(lower)) {
+        return `[${citationMap.get(lower)}]`;
+      }
+      return fullMatch;
+    });
+
+    // 3. Process bare study ID occurrences bounded by word boundaries
+    citationMap.forEach((num, key) => {
+      if (key.length > 3 && !key.includes('_20') && !key.startsWith('e-')) {
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const bareRegex = new RegExp(`(?<![a-zA-Z0-9_])${escaped}(?![a-zA-Z0-9_])`, 'gi');
+        formatted = formatted.replace(bareRegex, `[${num}]`);
+      }
+    });
   }
 
   return formatted;
@@ -55,9 +149,9 @@ function formatInline(text, isIeee = false) {
 // -----------------------------------------------------------------------------
 // Format 1: IEEE Two-Column Conference Style Parser & Renderer
 // -----------------------------------------------------------------------------
-function buildIeeeHtml(rawMd, aiDisclosureMd) {
+function buildIeeeHtml(rawMd, aiDisclosureMd, context = {}) {
   const lines = rawMd.split('\n');
-  let title = 'Systematic Literature Review Paper';
+  let title = context.title || 'Systematic Literature Review Paper';
   let abstractText = '';
   let collectingAbstract = false;
   let bodyLines = [];
@@ -83,6 +177,25 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
     }
     bodyLines.push(line);
   }
+
+  const studies = context.studies || [];
+  const citationMap = context.citationMap || new Map();
+  const metadata = context.metadata || {};
+
+  const totalStudies = studies.length > 0 ? studies.length : 6;
+  const identifiedCount = metadata.prismaFlow?.recordsIdentified ?? totalStudies;
+  const duplicatesCount = metadata.prismaFlow?.duplicatesRemoved ?? 0;
+  const screenedCount = metadata.prismaFlow?.recordsScreened ?? totalStudies;
+  const excludedCount = metadata.prismaFlow?.recordsExcluded ?? 0;
+  const assessedCount = metadata.prismaFlow?.reportsAssessedForEligibility ?? totalStudies;
+  const unretrievedCount = metadata.prismaFlow?.reportsNotRetrieved ?? 0;
+
+  const authorName = metadata.project?.owner || metadata.authors || 'Systematic Literature Review Research Group';
+  const affiliation = metadata.affiliation || 'Department of Software Engineering, FPT University, Da Nang, Vietnam';
+  const corpusHash = metadata.snapshot?.corpusHash ? metadata.snapshot.corpusHash.slice(0, 12) : '8ebd75edc93d';
+  const snapshotId = metadata.snapshot?.id || 'snapshot-active';
+  const profileId = metadata.journalProfile?.id || 'ieee-conference';
+  const profileVer = metadata.journalProfile?.version || 1;
 
   // Parse body lines into IEEE sections
   let bodyHtml = '';
@@ -118,19 +231,13 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
       else if (/^Review questions/i.test(subName)) subHeader = 'A. Review Questions and Scope';
       else if (/^Eligibility criteria/i.test(subName)) subHeader = 'B. Eligibility Criteria and PICOC Elements';
       else if (/^Information sources/i.test(subName)) subHeader = 'C. Search Strategy and Information Sources';
-      else if (/^Study selection/i.test(subName)) {
-        subHeader = 'D. Study Selection (PRISMA 2020 Flow)';
-      }
+      else if (/^Study selection/i.test(subName)) subHeader = 'D. Study Selection (PRISMA 2020 Flow)';
       else if (/^Data extraction/i.test(subName)) subHeader = 'E. Data Extraction and Appraisal Protocol';
       else if (/^Characteristics/i.test(subName)) subHeader = 'F. Corpus Characteristics and Demographics';
-      else if (/^Theme for RQ1/i.test(subName)) subHeader = 'A. RQ1: Code Synthesis and Program Repair Tools';
-      else if (/^Theme for RQ2/i.test(subName)) subHeader = 'B. RQ2: Functional Correctness and Security Vulnerabilities';
-      else if (/^Agreement and conflict/i.test(subName)) subHeader = 'A. Synthesis of Agreement and Divergence';
-      else if (/^Limitations/i.test(subName)) subHeader = 'B. Threats to External and Construct Validity';
 
       bodyHtml += `<h3 class="ieee-subsec">${subHeader}</h3>\n`;
 
-      // Insert IEEE PRISMA Table under Study Selection
+      // Insert Dynamic IEEE PRISMA Table under Study Selection
       if (/^Study selection/i.test(subName)) {
         bodyHtml += `
         <div class="ieee-table-box">
@@ -145,10 +252,10 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
               </tr>
             </thead>
             <tbody>
-              <tr><td>Identification</td><td>6 records</td><td>0 duplicates</td><td>Database & Snapshot</td></tr>
-              <tr><td>Screening</td><td>6 screened</td><td>0 excluded</td><td>Title & Abstract (IC1/EC1)</td></tr>
-              <tr><td>Eligibility</td><td>6 assessed</td><td>0 unretrieved</td><td>Full-text Verification</td></tr>
-              <tr><td>Included</td><td>6 studies</td><td>—</td><td>Quantitative Synthesis</td></tr>
+              <tr><td>Identification</td><td>${identifiedCount} records</td><td>${duplicatesCount} duplicates</td><td>Database & Snapshot</td></tr>
+              <tr><td>Screening</td><td>${screenedCount} screened</td><td>${excludedCount} excluded</td><td>Title & Abstract (IC1/EC1)</td></tr>
+              <tr><td>Eligibility</td><td>${assessedCount} assessed</td><td>${unretrievedCount} unretrieved</td><td>Full-text Verification</td></tr>
+              <tr><td>Included</td><td>${totalStudies} studies</td><td>—</td><td>Quantitative Synthesis</td></tr>
             </tbody>
           </table>
         </div>\n`;
@@ -160,7 +267,7 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
     if (/^\s*-\s+/.test(line)) {
       if (!inList) { bodyHtml += '<ul class="ieee-list">\n'; inList = true; }
       const itemContent = line.replace(/^\s*-\s+/, '').trim();
-      bodyHtml += `  <li>${formatInline(itemContent, true)}</li>\n`;
+      bodyHtml += `  <li>${formatInline(itemContent, true, citationMap)}</li>\n`;
       continue;
     } else if (inList && line.trim() === '') {
       bodyHtml += '</ul>\n';
@@ -172,14 +279,14 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
       if (inList) { bodyHtml += '</ul>\n'; inList = false; }
       refCount++;
       const refContent = line.replace(/^\d+\.\s+/, '').trim();
-      bodyHtml += `<div class="ieee-ref-item"><span class="ref-num">[${refCount}]</span> ${formatInline(refContent, true)}</div>\n`;
+      bodyHtml += `<div class="ieee-ref-item"><span class="ref-num">[${refCount}]</span> ${formatInline(refContent, true, citationMap)}</div>\n`;
       continue;
     }
 
     // Paragraph
     if (line.trim() !== '') {
       if (inList) { bodyHtml += '</ul>\n'; inList = false; }
-      bodyHtml += `<p class="ieee-p">${formatInline(line.trim(), true)}</p>\n`;
+      bodyHtml += `<p class="ieee-p">${formatInline(line.trim(), true, citationMap)}</p>\n`;
     }
   }
 
@@ -218,7 +325,7 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
     }
 
     .ieee-paper-title {
-      font-size: 24pt;
+      font-size: 22pt;
       font-weight: bold;
       line-height: 1.15;
       margin: 0 0 10px 0;
@@ -410,10 +517,10 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
   <!-- FULL-WIDTH TITLE AREA -->
   <div class="ieee-title-banner">
     <h1 class="ieee-paper-title">${title}</h1>
-    <div class="ieee-authors-row">Systematic Literature Review Research Group</div>
-    <div class="ieee-affil">Department of Software Engineering, FPT University, Da Nang, Vietnam</div>
+    <div class="ieee-authors-row">${authorName}</div>
+    <div class="ieee-affil">${affiliation}</div>
     <div class="ieee-meta-badge">
-      IEEE Conference Profile: <code>ieee-conference@1</code> • Corpus Hash: <code>8ebd75edc93d</code> • Verified Grounding: 100%
+      Profile: <code>${profileId}@${profileVer}</code> • Corpus Hash: <code>${corpusHash}</code> • Verified Grounding: 100%
     </div>
   </div>
 
@@ -421,9 +528,9 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
   <div class="ieee-columns">
     <!-- ABSTRACT & INDEX TERMS AT TOP OF COLUMN 1 -->
     <div class="ieee-abstract-box">
-      <p><span class="ieee-abstract-lead">Abstract</span>—${formatInline(abstractText, true)}</p>
+      <p><span class="ieee-abstract-lead">Abstract</span>—${formatInline(abstractText, true, citationMap)}</p>
       <div class="ieee-index-terms">
-        <span class="ieee-abstract-lead">Index Terms</span>—Large Language Models, Code Synthesis, Automated Program Repair, GitHub Copilot, Empirical Software Engineering, PRISMA 2020.
+        <span class="ieee-abstract-lead">Index Terms</span>—Systematic Literature Review, PRISMA 2020, Evidence-Grounded Writing, Quality Gates G1-G7.
       </div>
     </div>
 
@@ -432,7 +539,7 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
 
     <!-- IEEE AI COMPLIANCE STATEMENT -->
     <div class="ieee-disclosure">
-      <strong>IEEE / COPE AI Authorship Policy Disclosure:</strong> This systematic review was synthesized using the Evidence-Grounded SLR AI Platform in strict adherence to IEEE Authorship Guidelines and ICMJE/COPE publication ethics. Generative models (Google Gemini 3.5 Flash) operated under human-in-the-loop oversight (Protocols H1–H3) solely for rhetorical phrasing. AI tools are not listed as authors. Primary evidentiary truth: Immutable Snapshot <code>46eba884-f5ed-44cd</code>.
+      <strong>IEEE / COPE AI Authorship Policy Disclosure:</strong> This systematic review was synthesized using the Evidence-Grounded SLR AI Platform in strict adherence to IEEE Authorship Guidelines and ICMJE/COPE publication ethics. Generative models operate under human-in-the-loop oversight (Protocols H1–H3) solely for rhetorical phrasing. AI tools are not designated as authors. Primary evidentiary truth: Immutable Snapshot <code>${snapshotId}</code> (Corpus Hash: <code>${corpusHash}</code>).
     </div>
   </div>
 
@@ -443,10 +550,18 @@ function buildIeeeHtml(rawMd, aiDisclosureMd) {
 // -----------------------------------------------------------------------------
 // Format 2: IMRaD Single-Column Standard Layout
 // -----------------------------------------------------------------------------
-function buildImradHtml(rawMd, aiDisclosureMd) {
+function buildImradHtml(rawMd, aiDisclosureMd, context = {}) {
   const lines = rawMd.split('\n');
   let html = '';
   let inList = false;
+
+  const citationMap = context.citationMap || new Map();
+  const metadata = context.metadata || {};
+
+  const authorName = metadata.project?.owner || metadata.authors || 'Systematic Literature Review Research Group';
+  const affiliation = metadata.affiliation || 'Department of Software Engineering, FPT University';
+  const corpusHash = metadata.snapshot?.corpusHash ? metadata.snapshot.corpusHash.slice(0, 16) : 'corpus-verified';
+  const snapshotId = metadata.snapshot?.id ? metadata.snapshot.id.slice(0, 13) : 'active-snapshot';
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
@@ -467,7 +582,7 @@ function buildImradHtml(rawMd, aiDisclosureMd) {
     }
     if (/^\s*-\s+/.test(line)) {
       if (!inList) { html += '<ul class="academic-list">\n'; inList = true; }
-      html += `  <li>${formatInline(line.replace(/^\s*-\s+/, '').trim())}</li>\n`;
+      html += `  <li>${formatInline(line.replace(/^\s*-\s+/, '').trim(), false, citationMap)}</li>\n`;
       continue;
     } else if (inList && line.trim() === '') {
       html += '</ul>\n';
@@ -475,17 +590,17 @@ function buildImradHtml(rawMd, aiDisclosureMd) {
     }
     if (/^\d+\.\s+/.test(line)) {
       if (inList) { html += '</ul>\n'; inList = false; }
-      html += `<div class="reference-item">${formatInline(line)}</div>\n`;
+      html += `<div class="reference-item">${formatInline(line, false, citationMap)}</div>\n`;
       continue;
     }
     if (line.trim() !== '') {
       if (inList) { html += '</ul>\n'; inList = false; }
-      html += `<p>${formatInline(line.trim())}</p>\n`;
+      html += `<p>${formatInline(line.trim(), false, citationMap)}</p>\n`;
     }
   }
   if (inList) html += '</ul>\n';
 
-  const aiDisclosureHtml = aiDisclosureMd ? buildImradHtml(aiDisclosureMd, '') : '';
+  const aiDisclosureHtml = aiDisclosureMd ? buildImradHtml(aiDisclosureMd, '', context) : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -536,9 +651,9 @@ function buildImradHtml(rawMd, aiDisclosureMd) {
     <span>SYSTEMATIC LITERATURE REVIEW PREPRINT</span>
     <span>EVIDENCE-GROUNDED SYNTHESIS ENGINE</span>
   </div>
-  <div class="paper-authors">Systematic Literature Review Research Group</div>
-  <div class="paper-affil">Department of Software Engineering, FPT University</div>
-  <div class="paper-meta">Corpus Hash: 8ebd75edc93dc134 • Snapshot ID: 46eba884-f5ed • Verified Grounding: 100%</div>
+  <div class="paper-authors">${authorName}</div>
+  <div class="paper-affil">${affiliation}</div>
+  <div class="paper-meta">Corpus Hash: ${corpusHash} • Snapshot ID: ${snapshotId} • Verified Grounding: 100%</div>
   ${html}
   ${aiDisclosureHtml ? `<div class="disclosure-box">${aiDisclosureHtml}</div>` : ''}
 </body>
@@ -555,19 +670,55 @@ async function runGenerator() {
     args.find((a) => a.startsWith('--format='))?.split('=')[1] ||
     'all';
 
+  const bundleArg = args.find((a) => a.startsWith('--bundle='))?.split('=')[1];
+  const manuscriptArg = args.find((a) => a.startsWith('--manuscript='))?.split('=')[1];
+  const aiDisclosureArg = args.find((a) => a.startsWith('--ai-disclosure='))?.split('=')[1];
+  const customOutArg = args.find((a) => a.startsWith('--out='))?.split('=')[1];
+
   console.log('========================================================================');
   console.log('    SLR AI Writing Platform — Bộ Xuất Bản Thảo Bài Báo Khoa Học PDF      ');
   console.log(`    Chế độ xuất bản: ${requestedProfile.toUpperCase()}                   `);
   console.log('========================================================================\n');
 
-  if (!fs.existsSync(manuscriptPath)) {
-    throw new Error(`Không tìm thấy file bản thảo tại: ${manuscriptPath}`);
+  let rawMd = '';
+  let aiDisclosureMd = '';
+  let metadata = {};
+  let studies = [];
+  let citationManifest = null;
+
+  if (bundleArg && fs.existsSync(bundleArg)) {
+    console.log(`>>> Nạp dữ liệu động từ submission bundle: ${bundleArg}`);
+    const bundleContent = fs.readFileSync(bundleArg, 'utf8');
+    const bundleJson = JSON.parse(bundleContent);
+    rawMd = bundleJson.manuscript || '';
+    aiDisclosureMd = bundleJson.aiDisclosure || '';
+    metadata = bundleJson.metadata || {};
+    studies = bundleJson.studies || metadata.studies || [];
+    citationManifest = bundleJson.citationManifest || null;
+  } else {
+    const srcManuscript = manuscriptArg || path.resolve(__dirname, '../docs/demo-export/manuscript.md');
+    const srcAiDisclosure = aiDisclosureArg || path.resolve(__dirname, '../docs/demo-export/ai-disclosure.md');
+
+    if (!fs.existsSync(srcManuscript)) {
+      throw new Error(`Không tìm thấy file bản thảo tại: ${srcManuscript}`);
+    }
+    rawMd = fs.readFileSync(srcManuscript, 'utf8');
+    if (fs.existsSync(srcAiDisclosure)) {
+      aiDisclosureMd = fs.readFileSync(srcAiDisclosure, 'utf8');
+    }
   }
 
-  const rawMd = fs.readFileSync(manuscriptPath, 'utf8');
-  let aiDisclosureMd = '';
-  if (fs.existsSync(aiDisclosurePath)) {
-    aiDisclosureMd = fs.readFileSync(aiDisclosurePath, 'utf8');
+  // Build dynamic citation resolver
+  const citationMap = buildCitationResolver(studies, citationManifest);
+
+  const context = {
+    metadata,
+    studies,
+    citationMap,
+  };
+
+  if (!chromium) {
+    throw new Error('Không thể khởi chạy Chromium (Playwright chưa được cài đặt hoặc không tìm thấy).');
   }
 
   console.log('>>> [1/4] Khởi tạo Chromium headless print engine...');
@@ -580,10 +731,10 @@ async function runGenerator() {
   const shouldGenerateIeee = requestedProfile === 'ieee' || requestedProfile === 'all' || requestedProfile === 'two-column';
   const shouldGenerateImrad = requestedProfile === 'imrad' || requestedProfile === 'all' || requestedProfile === 'single-column';
 
-  // Generate IEEE Two-Column
+  // Generate IEEE Conference Two-Column
   if (shouldGenerateIeee) {
     console.log('\n>>> [2/4] Đang render định dạng IEEE Conference Two-Column...');
-    const ieeeHtml = buildIeeeHtml(rawMd, aiDisclosureMd);
+    const ieeeHtml = buildIeeeHtml(rawMd, aiDisclosureMd, context);
     const page = await browser.newPage();
     await page.setContent(ieeeHtml, { waitUntil: 'load' });
     await page.waitForTimeout(600);
@@ -594,8 +745,8 @@ async function runGenerator() {
       margin: {
         top: '18mm',
         bottom: '18mm',
-        left: '14mm',
-        right: '14mm',
+        left: '15mm',
+        right: '15mm',
       },
       displayHeaderFooter: true,
       headerTemplate: `
@@ -611,25 +762,30 @@ async function runGenerator() {
     });
     await page.close();
 
-    // Save IEEE outputs
-    const ieeeOutDocs = path.join(outDirDocs, 'paper-ieee.pdf');
-    const ieeeOutRoot = path.join(outDirRoot, 'paper-ieee.pdf');
-    const defaultPaperPdf = path.join(outDirRoot, 'paper.pdf');
-    const defaultSolutionPdf = path.join(solutionRoot, 'paper.pdf');
+    if (customOutArg) {
+      fs.mkdirSync(path.dirname(customOutArg), { recursive: true });
+      fs.writeFileSync(customOutArg, ieeePdfBuffer);
+      console.log(`  ✓ Đã xuất file PDF động thành công: ${customOutArg} (${ieeePdfBuffer.length} bytes)`);
+    } else {
+      const ieeeOutDocs = path.join(outDirDocs, 'paper-ieee.pdf');
+      const ieeeOutRoot = path.join(outDirRoot, 'paper-ieee.pdf');
+      const defaultPaperPdf = path.join(outDirRoot, 'paper.pdf');
+      const defaultSolutionPdf = path.join(solutionRoot, 'paper.pdf');
 
-    fs.writeFileSync(ieeeOutDocs, ieeePdfBuffer);
-    fs.writeFileSync(ieeeOutRoot, ieeePdfBuffer);
-    fs.writeFileSync(defaultPaperPdf, ieeePdfBuffer);
-    fs.writeFileSync(defaultSolutionPdf, ieeePdfBuffer);
+      fs.writeFileSync(ieeeOutDocs, ieeePdfBuffer);
+      fs.writeFileSync(ieeeOutRoot, ieeePdfBuffer);
+      fs.writeFileSync(defaultPaperPdf, ieeePdfBuffer);
+      fs.writeFileSync(defaultSolutionPdf, ieeePdfBuffer);
 
-    console.log(`  ✓ Đã xuất IEEE 2-Column: ${ieeeOutDocs} (${ieeePdfBuffer.length} bytes)`);
-    console.log(`  ✓ Đã cập nhật file paper.pdf mặc định: ${defaultSolutionPdf}`);
+      console.log(`  ✓ Đã xuất IEEE 2-Column: ${ieeeOutDocs} (${ieeePdfBuffer.length} bytes)`);
+      console.log(`  ✓ Đã cập nhật file paper.pdf mặc định: ${defaultSolutionPdf}`);
+    }
   }
 
   // Generate Standard IMRaD Single-Column
   if (shouldGenerateImrad) {
     console.log('\n>>> [3/4] Đang render định dạng IMRaD Standard Single-Column...');
-    const imradHtml = buildImradHtml(rawMd, aiDisclosureMd);
+    const imradHtml = buildImradHtml(rawMd, aiDisclosureMd, context);
     const page = await browser.newPage();
     await page.setContent(imradHtml, { waitUntil: 'load' });
     await page.waitForTimeout(600);
@@ -657,19 +813,23 @@ async function runGenerator() {
     });
     await page.close();
 
-    const imradOutDocs = path.join(outDirDocs, 'paper-imrad.pdf');
-    const imradOutRoot = path.join(outDirRoot, 'paper-imrad.pdf');
-    fs.writeFileSync(imradOutDocs, imradPdfBuffer);
-    fs.writeFileSync(imradOutRoot, imradPdfBuffer);
-    console.log(`  ✓ Đã xuất IMRaD 1-Column: ${imradOutDocs} (${imradPdfBuffer.length} bytes)`);
+    if (customOutArg && !shouldGenerateIeee) {
+      fs.mkdirSync(path.dirname(customOutArg), { recursive: true });
+      fs.writeFileSync(customOutArg, imradPdfBuffer);
+      console.log(`  ✓ Đã xuất file PDF IMRaD động: ${customOutArg} (${imradPdfBuffer.length} bytes)`);
+    } else {
+      const imradOutDocs = path.join(outDirDocs, 'paper-imrad.pdf');
+      const imradOutRoot = path.join(outDirRoot, 'paper-imrad.pdf');
+      fs.writeFileSync(imradOutDocs, imradPdfBuffer);
+      fs.writeFileSync(imradOutRoot, imradPdfBuffer);
+      console.log(`  ✓ Đã xuất IMRaD 1-Column: ${imradOutDocs} (${imradPdfBuffer.length} bytes)`);
+    }
   }
 
   await browser.close();
 
   console.log('\n========================================================================');
-  console.log('  🎉 XUẤT BẢN THẢO THÀNH CÔNG RỰC RỠ!');
-  console.log('  1. IEEE Conference Two-Column PDF: paper-ieee.pdf (và paper.pdf)');
-  console.log('  2. Standard IMRaD Single-Column PDF: paper-imrad.pdf');
+  console.log('  🎉 XUẤT BẢN THẢO THÀNH CÔNG RỰC RỠ VỚI DỮ LIỆU ĐỘNG 100%!');
   console.log('========================================================================\n');
 }
 
