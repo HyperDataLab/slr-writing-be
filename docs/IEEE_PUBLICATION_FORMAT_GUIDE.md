@@ -114,4 +114,11 @@ GET /api/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pd
   * `Content-Disposition: attachment; filename="<ten_project>_v<version>_ieee_conference.pdf"`
   * `ETag: "<package_hash>"`
 
+### 3. Cơ chế Biên dịch Động 100% (Dynamic On-Demand PDF Compiler):
+* **Dữ liệu thật 100% từ Database**: Khi người dùng yêu cầu tải hoặc xem PDF, backend sẽ nạp toàn bộ dữ liệu từ `ReviewSnapshot` và `ExportPackage` thực tế (tiêu đề, tác giả, mã băm `corpusHash`, `integrityHash`, số liệu PRISMA flow).
+* **Bộ phân giải trích dẫn động (`buildCitationResolver`)**: Tự động nhận diện và chuyển đổi mọi định dạng trích dẫn (study ID, externalId, tác giả-năm, thẻ bằng chứng `[E-xx]`) sang số thứ tự chuẩn IEEE `[1]`, `[2]`, ... theo đúng vị trí trong danh mục tài liệu tham khảo thực tế.
+* **Bảng PRISMA 2020 động (TABLE I)**: Số lượng hồ sơ nhận diện, sàng lọc, đánh giá toàn văn và đưa vào tổng hợp được tính toán trực tiếp từ snapshot.
+* **Lưu trữ & Cache cách ly**: Bản PDF được render bằng Chromium headless và lưu trữ riêng biệt tại `storage/exports/<snapshotId>_v<version>_<format>.pdf`.
+
+
 
