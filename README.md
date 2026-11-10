@@ -67,7 +67,7 @@ Prefix `/api`. Chi tiết trong Swagger. Mọi route (trừ `/api/health`) cần
 | POST, GET, PUT | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint` | Dàn ý bản thảo: sinh bằng quy tắc, xem, sửa theo phiên bản |
 | POST | `.../manuscript/blueprint/approve`, `.../reject` | **H1**: chỉ OWNER của project SLR trên `slr-be` duyệt hoặc từ chối dàn ý |
 | GET | `/llm/status` | Có mô hình ngôn ngữ (Gemini) sẵn sàng không. Không có route gửi văn bản cho mô hình; chỉ các bước viết gọi nó |
-| GET | `/journal-profiles`, `/journal-profiles/:profileId` | Profile khung bài báo (hiện có `generic-imrad`, luôn ghi rõ chưa xác minh với tạp chí nào) |
+| GET | `/journal-profiles`, `/journal-profiles/:profileId` | Profile khung bài báo (`generic-imrad` 1 cột, `ieee-conference` 2 cột chuẩn hội thảo) |
 | POST, GET | `/projects` | Tạo, liệt kê dự án của người dùng |
 | GET | `/projects/:projectId` | Chi tiết một dự án (dự án của người khác trả 404) |
 | POST | `/projects/:projectId/snapshots/validate` | Kiểm tra một run của `slr-be` có đủ điều kiện viết không, không lưu gì |
@@ -76,6 +76,18 @@ Prefix `/api`. Chi tiết trong Swagger. Mọi route (trừ `/api/health`) cần
 | GET | `/projects/:projectId/snapshots/:snapshotId` | Chi tiết, số dòng dữ liệu, trạng thái artifact, danh sách cảnh báo |
 | POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Sinh phần Methods từ snapshot bằng mẫu cố định (201 phiên bản mới, 200 không đổi) |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods` | Phiên bản Methods mới nhất và danh sách phiên bản |
+| POST, GET | `.../manuscript/export` | Gói nộp bài M9: kiểm tra và đóng gói 7 file học thuật bất biến sau khi duyệt H3 |
+| GET | `.../manuscript/export/download` | Tải gói nộp bài nén PKZIP (`submission-package.zip`) |
+| GET | `.../manuscript/export/download-pdf` | Tải hoặc duyệt trực tiếp bài báo PDF chuẩn IEEE 2 cột hoặc IMRaD 1 cột (`?format=ieee\|imrad&inline=0\|1`) |
+| GET | `.../manuscript/lineage` | Truy vết ngược nguồn bằng chứng từ từng câu bản nháp |
+
+### Lệnh Xuất Bản Thảo PDF
+
+```bash
+npm run export:pdf        # Xuất cả 2 định dạng (IEEE 2 cột + IMRaD 1 cột)
+npm run export:pdf:ieee   # Xuất định dạng IEEE Two-Column Conference
+npm run export:pdf:imrad  # Xuất định dạng Generic IMRaD Single-Column
+```
 
 Body của `validate` và import là `{ run, corpus, artifacts }` lấy từ API của `slr-be` (xem `docs/slr-be-survey.md`).
 

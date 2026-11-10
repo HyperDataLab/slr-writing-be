@@ -321,6 +321,24 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'PKZIP binary archive (application/zip)' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/download-pdf': {
+      get: {
+        tags: ['Export & H3'], summary: 'Download or view publication-grade PDF manuscript (IEEE Two-Column or Standard IMRaD)',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'version', in: 'query', required: false, schema: { type: 'string' }, description: 'Export package version (default: latest)' },
+          { name: 'format', in: 'query', required: false, schema: { type: 'string', enum: ['ieee', 'imrad'], default: 'ieee' }, description: 'Target journal profile layout' },
+          { name: 'inline', in: 'query', required: false, schema: { type: 'string', enum: ['0', '1', 'true', 'false'], default: '0' }, description: 'Set to 1 or true to view inline in browser' },
+        ],
+        responses: {
+          '200': { description: 'Publication-grade PDF binary stream (application/pdf)' },
+          '400': { description: 'INVALID_FORMAT or INVALID_VERSION' },
+          '401': { description: 'Not authenticated' },
+          '404': { description: 'EXPORT_PACKAGE_NOT_FOUND or PDF_NOT_FOUND' },
+        },
+      },
+    },
     '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/lineage': {
       get: {
         tags: ['Export & H3'], summary: 'Reverse trace paragraph/sentence to source anchors',
