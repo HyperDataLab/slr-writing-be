@@ -89,3 +89,29 @@ Các trích dẫn trong văn bản được ánh xạ chính xác vào danh mụ
 * `[5]` Y. Fu et al., *"Security Weaknesses of Copilot Generated Code in GitHub Projects"*, ACM TOSEM, 2023.
 * `[6]` C. Jimenez et al., *"SWE-bench: Can Language Models Resolve Real-World GitHub Issues?"*, Proc. ICLR 2024.
 
+---
+
+## 5. Tải & Xem Trực Tiếp Trên Web UI và REST API
+
+Ngoài việc sinh PDF qua terminal, hệ thống hiện đã tích hợp trực tiếp trên giao diện người dùng và API:
+
+### 1. Nút bấm trên giao diện Web (`ExportWorkspace.tsx`):
+* **`[ 📄 Tải bài báo PDF (IEEE) ]`**: Tải ngay file PDF 2 cột định dạng IEEE Conference chuẩn về máy tính người dùng chỉ với 1 cú click.
+* **`[ 👁️ Xem PDF (IEEE) ]`**: Mở bản xem trước PDF trực tiếp trên tab mới của trình duyệt qua Blob URL được chứng thực an toàn.
+* **Bảng Manifest 7 tệp học thuật**: Dòng `manuscript.md` được gắn thêm huy hiệu và nút thao tác nhanh `[ PDF (IEEE) ]` và `[ Xem PDF ]`.
+
+### 2. API Endpoint:
+```http
+GET /api/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pdf?format=ieee&inline=0
+```
+
+* **Query Parameters:**
+  * `format`: `ieee` (mặc định) hoặc `imrad`.
+  * `inline`: `1` hoặc `true` để xem trực tiếp trên tab trình duyệt (header `Content-Disposition: inline`), hoặc `0`/bỏ trống để tải về máy (header `Content-Disposition: attachment`).
+  * `version`: Phiên bản gói xuất (tùy chọn, mặc định lấy phiên bản mới nhất).
+* **Response Headers:**
+  * `Content-Type: application/pdf`
+  * `Content-Disposition: attachment; filename="<ten_project>_v<version>_ieee_conference.pdf"`
+  * `ETag: "<package_hash>"`
+
+
