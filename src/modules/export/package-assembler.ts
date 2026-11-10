@@ -260,6 +260,16 @@ The definitive source of scientific truth remains the immutable snapshot \`${par
     missingProfileSections,
     verificationReportId: params.verificationReport.id,
     verificationStatus: params.verificationReport.status,
+    studiesCount: params.snapshot.studies.length,
+    studies: params.snapshot.studies.map((st) => ({
+      id: st.id,
+      externalId: st.externalId,
+      title: st.title,
+      authors: st.authors,
+      year: st.year,
+      doi: st.doi,
+      venue: st.venue,
+    })),
   };
   const auditMetadataJson = JSON.stringify(auditMetadata, null, 2);
 
@@ -343,6 +353,7 @@ The definitive source of scientific truth remains the immutable snapshot \`${par
       summary: params.verificationReport.summary,
     },
     aiDisclosure: aiDisclosureMd,
+    studies: params.snapshot.studies,
     lineageSummary: {
       totalParagraphs: params.lineage.length,
       paragraphsWithFindings: params.lineage.filter((p) => p.usedFindingIds.length > 0).length,

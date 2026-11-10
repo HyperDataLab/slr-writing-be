@@ -138,7 +138,17 @@ export function buildCitationManifest(params: {
       let match: RegExpExecArray | null;
       while ((match = markerRegex.exec(text)) !== null) {
         const token = match[1];
-        if (token.startsWith('E-') || token.startsWith('F:') || token.startsWith('demo_')) {
+        const isCitationCandidate =
+          token.startsWith('E-') ||
+          token.startsWith('F:') ||
+          token.startsWith('study_') ||
+          token.startsWith('paper_') ||
+          token.startsWith('demo_') ||
+          studyMap.has(token) ||
+          evidenceMap.has(token) ||
+          findingMap.has(token);
+
+        if (isCitationCandidate) {
           const isKnownEvidence = evidenceMap.has(token);
           const isKnownFinding = findingMap.has(token);
           const isKnownStudy = studyMap.has(token);
@@ -159,7 +169,17 @@ export function buildCitationManifest(params: {
     let proseMatch: RegExpExecArray | null;
     while ((proseMatch = proseMarkerRegex.exec(sec.markdown)) !== null) {
       const token = proseMatch[1];
-      if (token.startsWith('E-') || token.startsWith('F:') || token.startsWith('demo_')) {
+      const isCitationCandidate =
+        token.startsWith('E-') ||
+        token.startsWith('F:') ||
+        token.startsWith('study_') ||
+        token.startsWith('paper_') ||
+        token.startsWith('demo_') ||
+        studyMap.has(token) ||
+        evidenceMap.has(token) ||
+        findingMap.has(token);
+
+      if (isCitationCandidate) {
         const isKnownEvidence = evidenceMap.has(token);
         const isKnownFinding = findingMap.has(token);
         const isKnownStudy = studyMap.has(token);
