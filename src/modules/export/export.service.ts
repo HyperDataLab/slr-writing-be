@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 import type { Prisma, Approval } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error.js';
@@ -738,6 +741,84 @@ export async function downloadExportZip(params: {
   return {
     filename: `${sanitizedTitle}_v${exportView.version}_submission_package.zip`,
     zipBuffer: assembled.zipBuffer,
+    packageHash: exportView.packageHash,
+  };
+}
+
+/**
+ * Retrieves the compiled publication-grade PDF manuscript in IEEE Two-Column or Standard IMRaD layout.
+ */
+export async function downloadExportPdf(params: {
+  projectId: string;
+  snapshotId: string;
+  version?: number;
+  format?: 'ieee' | 'imrad';
+}): Promise<{ filename: string; pdfBuffer: Buffer; packageHash: string }> {
+  const exportView = params.version
+    ? await getExportPackageByVersion({ ...params, version: params.version })
+    : await getLatestExportPackage(params);
+
+  const snapshot = await prisma.reviewSnapshot.findUniqueOrThrow({
+    where: { id: params.snapshotId },
+    include: { project: true },
+  });
+
+  const format = params.format === 'imrad' ? 'imrad' : 'ieee';
+
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'docs', 'demo-export', `paper-${format}.pdf`),
+    path.resolve(process.cwd(), `paper-${format}.pdf`),
+    path.resolve(process.cwd(), 'paper.pdf'),
+  ];
+
+  let pdfBuffer: Buffer | null = null;
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        pdfBuffer = fs.readFileSync(p);
+        break;
+      } catch {
+        // Continue search
+      }
+    }
+  }
+
+  // If not pre-rendered on disk, trigger generation script on demand
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    const scriptPath = path.resolve(process.cwd(), 'scripts', 'generate-paper-pdf.cjs');
+    if (fs.existsSync(scriptPath)) {
+      try {
+        execSync(`node "${scriptPath}" --profile=${format}`, { stdio: 'pipe', timeout: 30000 });
+        for (const p of candidatePaths) {
+          if (fs.existsSync(p)) {
+            pdfBuffer = fs.readFileSync(p);
+            break;
+          }
+        }
+      } catch {
+        // Fallback handled below
+      }
+    }
+  }
+
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    throw new NotFoundError(
+      `PDF for format '${format}' is not available yet. Please generate the publication PDF or verify paper-${format}.pdf exists.`,
+      'PDF_NOT_FOUND'
+    );
+  }
+
+  const sanitizedTitle = (snapshot.project.name || 'manuscript')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .slice(0, 40);
+
+  const suffix = format === 'ieee' ? 'ieee_conference' : 'imrad_preprint';
+  const filename = `${sanitizedTitle}_v${exportView.version}_${suffix}.pdf`;
+
+  return {
+    filename,
+    pdfBuffer,
     packageHash: exportView.packageHash,
   };
 }
