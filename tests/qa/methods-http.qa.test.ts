@@ -342,7 +342,15 @@ describe('HTTP: odd ids and versions', () => {
     const res = await generate(project.id, snapshot.id);
     expect(Object.keys(res.body).sort()).toEqual(['data', 'success']);
     expect(Object.keys(res.body.data).sort()).toEqual(['created', 'revision']);
-    expect(Object.keys(res.body.data.revision).sort()).toEqual(['contentHash', 'createdAt', 'createdBy', 'facts', 'generator', 'id', 'markdown', 'sectionId', 'version', 'warnings']);
+    expect(Object.keys(res.body.data.revision).sort()).toEqual(['contentHash', 'createdAt', 'createdBy', 'factPassages', 'facts', 'generator', 'id', 'markdown', 'sectionId', 'version', 'warnings']);
+    expect(res.body.data.revision.factPassages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: expect.any(String),
+        startLine: expect.any(Number),
+        endLine: expect.any(Number),
+        factKeys: expect.any(Array),
+      }),
+    ]));
     for (const w of res.body.data.revision.warnings) expect(w.severity).toBe('warning');
   });
 });
