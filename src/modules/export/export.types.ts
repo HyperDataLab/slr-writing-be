@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gateIdSchema, gateStatusSchema } from '../verification/verification.types.js';
 
 export const h3DecisionSchema = z
   .object({
@@ -17,6 +18,16 @@ export const h3StatusSchema = z
   .object({
     h3Status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
     canApprove: z.boolean(),
+    readiness: z.object({
+      h1Approved: z.boolean(),
+      requiredSectionsDrafted: z.boolean(),
+      allH2Approved: z.boolean(),
+      verificationCurrent: z.boolean(),
+      qualityGates: z.array(z.object({
+        gateId: gateIdSchema,
+        status: gateStatusSchema,
+      }).strict()),
+    }).strict(),
     blockingReasons: z.array(z.string()),
     compositeTargetHash: z.string(),
     latestApproval: z

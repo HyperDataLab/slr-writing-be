@@ -87,10 +87,10 @@ export const openApiDocument: OpenAPIV3.Document = {
     },
     '/api/projects/{projectId}/snapshots': {
       post: {
-        tags: ['Snapshots'], summary: 'Import a slr-be run as an immutable snapshot',
-        description: '201 for a new snapshot, 200 when the same run and corpus hash were imported before, 422 SNAPSHOT_NOT_READY (with the report in error.details) when the run has blocking issues. Nothing is stored for a blocked run.',
+        tags: ['Snapshots'], summary: 'Import a JSON snapshot bundle as an immutable manual snapshot',
+        description: 'Accepts a client-posted bundle with run, corpus, artifacts, and optional supplements. The backend validates the bundle and readiness, and marks its provenance as manual. Returns 201 for a new snapshot or 200 when it was already imported. Returns 422 SNAPSHOT_NOT_READY with the report in error.details when the bundle has blocking issues; nothing is stored for a blocked bundle.',
         parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'Already imported' }, '201': { description: 'Imported' }, '400': { description: 'INVALID_IMPORT_INPUT or RUN_PROJECT_MISMATCH' }, '403': { description: 'MANUAL_IMPORT_DISABLED: importing a run posted by the client is switched off (default in production)' }, '404': { description: 'PROJECT_NOT_FOUND' }, '422': { description: 'SNAPSHOT_NOT_READY' } },
+        responses: { '200': { description: 'Already imported' }, '201': { description: 'Imported' }, '400': { description: 'INVALID_IMPORT_INPUT or RUN_PROJECT_MISMATCH' }, '403': { description: 'MANUAL_IMPORT_DISABLED: client-posted imports are disabled by configuration' }, '404': { description: 'PROJECT_NOT_FOUND' }, '422': { description: 'SNAPSHOT_NOT_READY' } },
       },
       get: {
         tags: ['Snapshots'], summary: 'List the snapshots of the project',
@@ -319,6 +319,24 @@ export const openApiDocument: OpenAPIV3.Document = {
           { name: 'version', in: 'query', required: false, schema: { type: 'string' } },
         ],
         responses: { '200': { description: 'PKZIP binary archive (application/zip)' }, '401': { description: 'Not authenticated' }, '404': { description: 'EXPORT_PACKAGE_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/export/download-pdf': {
+      get: {
+        tags: ['Export & H3'], summary: 'Download or view publication-grade PDF manuscript (IEEE Two-Column or Standard IMRaD)',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'version', in: 'query', required: false, schema: { type: 'string' }, description: 'Export package version (default: latest)' },
+          { name: 'format', in: 'query', required: false, schema: { type: 'string', enum: ['ieee', 'imrad'], default: 'ieee' }, description: 'Target journal profile layout' },
+          { name: 'inline', in: 'query', required: false, schema: { type: 'string', enum: ['0', '1', 'true', 'false'], default: '0' }, description: 'Set to 1 or true to view inline in browser' },
+        ],
+        responses: {
+          '200': { description: 'Publication-grade PDF binary stream (application/pdf)' },
+          '400': { description: 'INVALID_FORMAT or INVALID_VERSION' },
+          '401': { description: 'Not authenticated' },
+          '404': { description: 'EXPORT_PACKAGE_NOT_FOUND or PDF_NOT_FOUND' },
+        },
       },
     },
     '/api/projects/{projectId}/snapshots/{snapshotId}/manuscript/lineage': {

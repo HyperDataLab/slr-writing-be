@@ -305,7 +305,7 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | GET | `/health` | Kiểm tra sống | 200 |
 | GET | `/health/slr` | Kiểm tra kết nối upstream tới SLR backend (`SLR_API_BASE_URL`): `{reachable, baseUrl, latencyMs, error}` | 200 |
 | GET | `/llm/status` | Có mô hình sẵn sàng không và là mô hình nào (`configured`, `provider`, `model`). Không bao giờ trả khoá. Không có route gửi văn bản cho mô hình | 200; 401 |
-| GET | `/journal-profiles` | Danh sách profile khung bài báo (hiện có `generic-imrad`, luôn chưa xác minh) | 200; 401 |
+| GET | `/journal-profiles` | Danh sách profile khung bài báo (`generic-imrad` 1 cột, `ieee-conference` 2 cột chuẩn hội thảo) | 200; 401 |
 | GET | `/journal-profiles/:profileId` | Một profile: mục, thứ tự, ngân sách từ gợi ý, nguồn dữ liệu, trạng thái xác minh | 200; 401; 404 `JOURNAL_PROFILE_NOT_FOUND` |
 | POST | `/projects` | Tạo project `{name, slrProjectId}` | 201; 409 `PROJECT_EXISTS`; 400 `VALIDATION_ERROR` |
 | GET | `/projects` | Project của người gọi | 200 |
@@ -325,6 +325,16 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint/approve` | **H1**: duyệt phiên bản mới nhất. Body `{version, note?}`. Chỉ OWNER trên `slr-be` | 201 / 200; 400 `INVALID_REQUEST`; 401; 403 `APPROVAL_REQUIRES_OWNER` hoặc `SLR_PROJECT_ACCESS_DENIED`; 404 `BLUEPRINT_NOT_FOUND`; 409 `STALE_BLUEPRINT`; 422 `BLUEPRINT_NOT_APPROVABLE`; 502 / 504 khi `slr-be` lỗi hoặc chậm |
 | POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/blueprint/reject` | **H1**: từ chối (hoặc rút lại lần duyệt). Body `{version, note}`, ghi chú bắt buộc | 201 / 200; 400 `INVALID_REQUEST`; 401; 403; 404 `BLUEPRINT_NOT_FOUND`; 409 `STALE_BLUEPRINT`; 502 / 504 |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/methods/revisions/:version` | Một phiên bản đã lưu | 200; 400 `INVALID_VERSION`; 404 `METHODS_REVISION_NOT_FOUND` |
+| POST, GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/paragraph-plans` | M6: Sinh và xem kế hoạch từng đoạn cho các section | 201 / 200; 401 |
+| POST, GET, PUT | `/projects/:projectId/snapshots/:snapshotId/manuscript/sections/:sectionKey/draft` | M7: Soạn thảo bản nháp bằng LLM, xem và sửa thủ công | 201 / 200; 401 |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/sections/:sectionKey/approve` | **H2**: Duyệt bản nháp section (chỉ OWNER trên `slr-be`) | 200; 403; 422 |
+| POST, GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/verification/run` | M8: Thẩm định 7 Quality Gates (G1–G7), phát hiện số liệu không căn cứ | 201 / 200; 401 |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/final/status` | M9: Đánh giá điều kiện sẵn sàng duyệt H3 và xuất bản thảo | 200 |
+| POST | `/projects/:projectId/snapshots/:snapshotId/manuscript/final/approve` | **H3**: Duyệt xuất bản cuối cùng bởi OWNER | 200; 403; 422 |
+| POST, GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/export` | M9: Tạo hoặc xem metadata gói xuất bản bất biến | 201 / 200; 422 |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/export/download` | Tải toàn bộ gói nộp bài PKZIP (`submission-package.zip`) | 200 (application/zip) |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pdf` | Tải hoặc xem bài báo PDF định dạng IEEE 2 cột hoặc IMRaD 1 cột (`?format=ieee\|imrad&inline=0\|1`) | 200 (application/pdf) |
+| GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/lineage` | Truy vết ngược từ câu nhận định về bằng chứng và anchor PDF nguồn | 200 |
 
 Mọi route cần xác thực. Project/snapshot của người khác luôn trả **404** (không 403, để không dò được ID).
 
@@ -434,7 +444,7 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 - `src/modules/auth/firebase-verifier.ts`: xác minh ID token bằng `firebase-admin` (chữ ký, issuer, audience, hạn dùng), kiểm tra lại `aud` đúng bằng project id và bắt buộc có `aud`, giới hạn thời gian chờ 10 s, không bao giờ ném lỗi hay lộ lý do. Đăng ký lúc khởi động trong `server.ts` qua `configureAuth()` khi có `FIREBASE_PROJECT_ID`.
 - `parseEnv` (`src/config/env.ts`): production (hoặc thiếu `NODE_ENV`) mà thiếu `FIREBASE_PROJECT_ID` thì **không khởi động**; `FIREBASE_PROJECT_ID` đặt cùng `DEV_AUTH_ENABLED=true` cũng không khởi động (nếu không, ai không có token vẫn đóng giả được bằng `X-Dev-User-Id`). Giá trị rỗng coi như chưa đặt.
 - Liên kết project: `POST /projects` hỏi `slr-be` (`GET /api/projects/:id` bằng token người gọi). Không có quyền hoặc project không tồn tại đều trả cùng một câu 403 `SLR_PROJECT_ACCESS_DENIED` để không dò được ID. Kiểm tra này chạy trước kiểm tra trùng.
-- Import tay `POST /snapshots` trả 403 `MANUAL_IMPORT_DISABLED` khi `ALLOW_MANUAL_SNAPSHOT_IMPORT` tắt (mặc định tắt ở production). `validate` và xem danh sách vẫn dùng được.
+- Import JSON bundle `POST /snapshots` được bật mặc định trong mọi môi trường, chỉ cho owner đã xác thực và luôn ghi `sourceSystem='manual'`; đặt `ALLOW_MANUAL_SNAPSHOT_IMPORT=false` để tắt. `validate` và xem danh sách vẫn dùng được khi tắt.
 - `POST /snapshots/from-slr` giới hạn theo người dùng (`FROM_SLR_RATE_LIMIT_PER_MINUTE`, mặc định 20/phút) → 429 `RATE_LIMITED`. Đếm trong bộ nhớ của một tiến trình.
 - Tên và `slrProjectId` chứa NUL hoặc surrogate lẻ bị từ chối 400 thay vì lỗi 500 từ database.
 
@@ -445,7 +455,7 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 **Lỗ hổng đã biết (ưu tiên cao):**
 
 1. ~~Liên kết project không kiểm tra quyền~~ → đã xử lý ở M1.
-2. ~~Import tay lưu dữ liệu tự bịa~~ → đã gắn nhãn `manual` và tắt mặc định ở production.
+2. ~~Import tay lưu dữ liệu tự bịa~~ → đã gắn nhãn `manual`, kiểm tra schema/readiness và yêu cầu owner đã xác thực; có thể tắt bằng `ALLOW_MANUAL_SNAPSHOT_IMPORT=false`.
 3. ~~Không có rate limit~~ → đã có cho `from-slr` (đếm trong bộ nhớ, một tiến trình).
 4. Swagger công khai ở production; `helmet` đang tắt CSP; `x-request-id` từ client chưa được làm sạch; `FRONTEND_URL` chưa kiểm tra.
 5. Dòng con của snapshot (kể cả `SnapshotSupplement`, `SnapshotArtifact`) vẫn UPDATE được ở mức DB; "bất biến" hiện do tầng service giữ.
@@ -481,7 +491,7 @@ npm run dev                 # http://localhost:5100  (Swagger: /api-docs)
 | `FIREBASE_CHECK_REVOKED` | `false` | Từ chối cả token bị thu hồi; cần service account |
 | `FIREBASE_AUTH_EMULATOR_HOST` | (trống) | Dev: trỏ `firebase-admin` tới Auth emulator (ví dụ `localhost:9099`, do `npm run emulators` của `slr-be` mở). Cần `FIREBASE_PROJECT_ID` trùng project emulator (`slr-system-dev`) và `DEV_AUTH_ENABLED=false`. **Từ chối khởi động** nếu `NODE_ENV` không phải `development`/`test`, vì token của emulator giả mạo được |
 | `SLR_VERIFY_PROJECT_ACCESS` | `true` | Hỏi `slr-be` về quyền khi liên kết project |
-| `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` ngoài production, `false` ở production | Cho phép import tay |
+| `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` | Cho phép owner đã xác thực import JSON snapshot bundle; snapshot được đánh dấu nguồn `manual`. Đặt `false` để tắt |
 | `FROM_SLR_RATE_LIMIT_PER_MINUTE` | 20 | Số lần gọi `from-slr` mỗi người mỗi phút |
 | `GEMINI_API_KEY` | (trống) | Khoá Gemini. **Bí mật**: chỉ đặt trong `.env` cục bộ hoặc biến môi trường triển khai |
 | `LLM_PROVIDER` | tự chọn | `gemini` hoặc `none`; không đặt = `gemini` nếu có khoá, ngược lại `none` |
@@ -770,9 +780,15 @@ flowchart TD
 ### M9 — Export + H3 — **đã code, có test đầy đủ**
 - **Section bắt buộc (`modules/manuscripts/required-sections.ts`):** verification và H3 chỉ qua khi mọi section bắt buộc đã có bản nháp (H3 còn cần mỗi bản nháp đã duyệt H2). Bắt buộc = `methods` + `results` + mọi section blueprint đã bật mà có ít nhất một paragraph plan `READY_TO_DRAFT` (engine chỉ draft được các section đó). **Abstract và Conclusion** (nếu blueprint bật) là section tổng hợp: verification **không** đợi chúng (chúng viết sau H2), nhưng **H3 và export bắt buộc** (có trong `requiredSections` của `GET /final/status`), và nếu một section nguồn đổi sau khi chúng được viết thì H3 bị chặn "was written from earlier versions of: ..." (phải soạn lại; vân tay verification cũng đổi nên phải chạy lại verification). Section blueprint đã bật nhưng engine không draft được (không có plan, hoặc mọi plan `NEEDS_EVIDENCE`) **không chặn** mà được liệt kê trong `omittedSections` của `GET /final/status` (cùng `requiredSections`). Thiếu section bắt buộc → `blockingReasons` có "Required section 'x' has not been drafted yet".
 - Chặn khi có FAIL critical, citation không tồn tại, PRISMA lệch, thiếu H3. Gói gồm: Markdown, citation manifest, báo cáo chất lượng, issue còn mở, lịch sử revision, lời khai sử dụng AI, metadata audit (snapshot + hash + profile + model config). **Truy ngược được một câu về `ParagraphPlan → Finding → Study → SourceAnchor`** bằng một truy vấn.
+- **Xuất bản bài báo PDF chuẩn IEEE 2 cột & IMRaD 1 cột (`modules/export/export.service.ts`):** Endpoint `GET /api/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pdf` hỗ trợ tham số `?format=ieee|imrad` và `?inline=0|1`. Tích hợp bộ sinh PDF Chromium headless chuẩn hội thảo (`docs/IEEE_PUBLICATION_FORMAT_GUIDE.md`), cho phép tải về máy hoặc duyệt inline trực tiếp trên trình duyệt.
 
-### M10 — Giao diện
-- Chưa có repo FE. Làm CLI hoặc trang trong `slr-fe` trước (đã có đăng nhập và ngữ cảnh project). Màn hình tối thiểu: Import & Readiness, Outline (H1), xem trước Markdown + duyệt (H2/H3).
+### M10 — Giao diện (`slr-writing-fe`) — **đã hoàn thành**
+- Đã hoàn thiện toàn bộ phân hệ Frontend độc lập (`slr-writing-fe` trên cổng 5173, React 19 + TypeScript + Vite + TailwindCSS v4):
+  - Màn hình Import & Readiness (kết nối trực tiếp hoặc mock `slr-be` cổng 5000).
+  - Dàn ý H1 (kéo thả, chọn profile IEEE / IMRaD, phê duyệt H1).
+  - Writing Studio (soạn thảo từng đoạn, trích dẫn neo bằng chứng, sửa tay có kiểm soát, phê duyệt H2).
+  - Thẩm định chất lượng M8 (kiểm tra 7 Quality Gates G1-G7).
+  - Trung tâm xuất bản thảo M9 (`ExportWorkspace.tsx`): Kiểm tra danh sách điều kiện H3, phê duyệt H3, 1-click tải gói PKZIP, 1-click **Tải bài báo PDF (IEEE)** và nút **Xem trực tiếp PDF (IEEE)** ngay trên trình duyệt.
 
 ### Hardening chạy song song
 Rate limit; CSP/helmet; tắt Swagger ở production; làm sạch `x-request-id`; kiểm tra `FRONTEND_URL`; trigger DB chặn UPDATE/DELETE trên bảng con của snapshot; tổng thời gian cho `fetchRun`; không có credential mặc định ở production (`DATABASE_URL` bắt buộc).

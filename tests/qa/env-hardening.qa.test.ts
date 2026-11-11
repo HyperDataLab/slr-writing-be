@@ -62,8 +62,8 @@ describe('rate limit numeric edge cases', () => {
 });
 
 describe('manual import default', () => {
-  it('production defaults to off, test/development to on', () => {
-    expect(parseEnv(prod).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(false);
+  it('defaults to on in production, test, and development', () => {
+    expect(parseEnv(prod).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(true);
     expect(parseEnv({ NODE_ENV: 'test' }).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(true);
   });
   it('SLR_VERIFY_PROJECT_ACCESS defaults to true in production too', () => {

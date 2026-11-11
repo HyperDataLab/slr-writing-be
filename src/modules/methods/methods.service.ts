@@ -7,7 +7,7 @@ import { AppError, NotFoundError } from '../../shared/errors/app-error.js';
 import { extractMethodsFacts } from './methods-facts.js';
 import { findUngroundedNumbers } from './methods-grounding.js';
 import { renderMethods } from './methods-renderer.js';
-import type { Fact } from './methods.types.js';
+import type { Fact, MethodsFactPassage } from './methods.types.js';
 
 export const METHODS_SECTION = 'methods';
 
@@ -22,9 +22,25 @@ export interface MethodsWarning {
 }
 
 export interface GenerateResult {
-  revision: SectionRevision;
+  revision: MethodsRevisionView;
   /** False when the snapshot gives the same text as the latest version, so no new version was stored. */
   created: boolean;
+}
+
+export type MethodsRevisionView = SectionRevision & { factPassages: MethodsFactPassage[] };
+
+/** Derive UI grounding ranges from the immutable facts; never return ranges for text they do not match. */
+function withFactPassages(revision: SectionRevision): MethodsRevisionView {
+  let factPassages: MethodsFactPassage[] = [];
+  if (revision.generator === METHODS_GENERATOR && Array.isArray(revision.facts)) {
+    try {
+      const draft = renderMethods(revision.facts as unknown as Fact[]);
+      if (draft.markdown === revision.markdown) factPassages = draft.factPassages;
+    } catch {
+      // Historic or malformed facts must not prevent a revision from loading.
+    }
+  }
+  return { ...revision, factPassages };
 }
 
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -106,12 +122,12 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
   });
   if (knownSection) {
     const known = await prisma.sectionRevision.findFirst({ where: { sectionId: knownSection.id }, orderBy: { version: 'desc' } });
-    if (known && known.contentHash === contentHash) return { revision: known, created: false };
+    if (known && known.contentHash === contentHash) return { revision: withFactPassages(known), created: false };
   }
 
   // Writers of one snapshot (Methods, the blueprint, their approvals) take turns: first in memory, holding no connection,
   // then on a database lock for other server instances. The second writer finds the first one's version and adds none.
-  return exclusiveForSnapshot(snapshot.id, () => prisma.$transaction(async (tx) => {
+  const result = await exclusiveForSnapshot(snapshot.id, () => prisma.$transaction(async (tx) => {
     await takeSnapshotLock(tx, snapshot.id);
     const manuscript = await ensureManuscript(tx, { projectId: params.projectId, snapshotId: snapshot.id, actor: params.actor });
     const section = await tx.manuscriptSection.upsert({
@@ -139,6 +155,7 @@ export async function generateMethods(params: { projectId: string; snapshotId: s
     });
     return { revision, created: true };
   }, WRITE_TRANSACTION_OPTIONS));
+  return { ...result, revision: withFactPassages(result.revision) };
 }
 
 const revisionSummary = { id: true, version: true, generator: true, contentHash: true, createdBy: true, createdAt: true } as const;
@@ -154,12 +171,12 @@ export async function getLatestMethods(projectId: string, snapshotId: string) {
   const latest = section ? await prisma.sectionRevision.findFirst({ where: { sectionId: section.id }, orderBy: { version: 'desc' } }) : null;
   if (!section || !latest) throw new NotFoundError('Methods has not been generated for this snapshot', 'METHODS_NOT_GENERATED');
   const versions = await prisma.sectionRevision.findMany({ where: { sectionId: section.id }, orderBy: { version: 'asc' }, select: revisionSummary });
-  return { revision: latest, versions };
+  return { revision: withFactPassages(latest), versions };
 }
 
 export async function getMethodsRevision(projectId: string, snapshotId: string, version: number) {
   const section = await findSection(projectId, snapshotId);
   const revision = section ? await prisma.sectionRevision.findUnique({ where: { sectionId_version: { sectionId: section.id, version } } }) : null;
   if (!revision) throw new NotFoundError('Methods version not found', 'METHODS_REVISION_NOT_FOUND');
-  return revision;
+  return withFactPassages(revision);
 }

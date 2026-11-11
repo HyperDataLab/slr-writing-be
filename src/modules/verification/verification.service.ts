@@ -27,6 +27,7 @@ import { G6ClaimStrengthEvaluator } from './gates/g6-claim-strength.js';
 import { G7RqCoverageEvaluator } from './gates/g7-rq-coverage.js';
 import type {
   GateId,
+  GateStatus,
   QualityGateResult,
   ReviewIssue,
   VerificationOverallStatus,
@@ -47,10 +48,15 @@ const ALL_GATES: GateEvaluator[] = [
   new G7RqCoverageEvaluator(),
 ];
 
+export type VerificationGateProgress =
+  | { gateId: GateId; state: 'RUNNING' }
+  | { gateId: GateId; state: 'COMPLETED'; status: GateStatus };
+
 export async function runVerification(params: {
   projectId: string;
   snapshotId: string;
   actor: string;
+  onGateProgress?: (progress: VerificationGateProgress) => void;
 }): Promise<{ report: VerificationReport; created: boolean; view: VerificationReportView }> {
   const { projectId, snapshotId, actor } = params;
 
@@ -205,9 +211,19 @@ export async function runVerification(params: {
   const allIssues: ReviewIssue[] = [];
 
   for (const gate of ALL_GATES) {
+    try {
+      params.onGateProgress?.({ gateId: gate.gateId, state: 'RUNNING' });
+    } catch {
+      // A disconnected progress listener must not interrupt the verification run.
+    }
     const evaluation = await gate.evaluate(evaluationContext);
     gatesRecord[gate.gateId] = evaluation.result;
     allIssues.push(...evaluation.issues);
+    try {
+      params.onGateProgress?.({ gateId: gate.gateId, state: 'COMPLETED', status: evaluation.result.status });
+    } catch {
+      // A disconnected progress listener must not interrupt the verification run.
+    }
   }
 
   // 8. Compute Summary & Overall Status

@@ -5,6 +5,7 @@ import { getOwnedProject } from '../projects/projects.service.js';
 import {
   createExportPackage,
   decideH3,
+  downloadExportPdf,
   downloadExportZip,
   getExportPackageByVersion,
   getH3Status,
@@ -171,6 +172,46 @@ exportRouter.get('/export/download', async (req: AuthenticatedRequest & Request<
     res.setHeader('Content-Length', zipBuffer.length);
     res.setHeader('ETag', `"${packageHash}"`);
     return res.status(200).send(zipBuffer);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * GET /api/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pdf
+ * Downloads or views the compiled publication PDF in IEEE Two-Column or Standard IMRaD format.
+ */
+exportRouter.get('/export/download-pdf', async (req: AuthenticatedRequest & Request<Params>, res, next) => {
+  try {
+    const project = await getOwnedProject(req.user!.uid, req.params.projectId);
+    let versionNum: number | undefined;
+    if (req.query.version) {
+      if (!/^[1-9]\d{0,8}$/.test(String(req.query.version))) {
+        throw new BadRequestError('Version query parameter must be a positive integer', 'INVALID_VERSION');
+      }
+      versionNum = Number(req.query.version);
+    }
+
+    const rawFormat = String(req.query.format || 'ieee').toLowerCase();
+    if (rawFormat !== 'ieee' && rawFormat !== 'imrad') {
+      throw new BadRequestError('Format must be either "ieee" or "imrad"', 'INVALID_FORMAT');
+    }
+    const format = rawFormat as 'ieee' | 'imrad';
+
+    const isInline = req.query.inline === 'true' || req.query.inline === '1';
+
+    const { filename, pdfBuffer, packageHash } = await downloadExportPdf({
+      projectId: project.id,
+      snapshotId: req.params.snapshotId,
+      version: versionNum,
+      format,
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `${isInline ? 'inline' : 'attachment'}; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('ETag', `"${packageHash}"`);
+    return res.status(200).send(pdfBuffer);
   } catch (error) {
     return next(error);
   }
