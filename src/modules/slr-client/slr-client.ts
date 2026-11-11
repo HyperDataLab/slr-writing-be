@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { AppError } from '../../shared/errors/app-error.js';
+import { z } from 'zod';
 import {
   artifactPayloadSchema, corpusSchema, prismaWritingExportSchema, rqFindingsSchema, runListItemSchema, runListSchema, runSchema, unwrapEnvelope,
   type ArtifactTypeName, type ImportInput, type SlrRunListItem, type Supplements,
@@ -16,6 +17,18 @@ export const OPTIONAL_ARTIFACT_TYPES: ArtifactTypeName[] = ['A2', 'A7'];
 /** slr-be run ids look like `run-20260101120000-ab12cd`; reject anything else before it reaches a URL. */
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 export const isValidRunId = (value: unknown): value is string => typeof value === 'string' && RUN_ID_PATTERN.test(value);
+
+const projectListSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    title: z.string().optional(),
+  }).passthrough()),
+  pageNumber: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  totalCount: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+}).passthrough();
 
 export interface SlrClientOptions {
   baseUrl?: string;
@@ -175,6 +188,17 @@ export class SlrClient {
   // encodeURIComponent leaves dots alone and URL parsing resolves "." and ".." segments, which would leave the project path.
   private assertSafeProjectId(slrProjectId: string): void {
     if (/^\.+$/.test(slrProjectId)) throw new AppError('The linked SLR project id is not valid', 400, 'INVALID_SLR_PROJECT_ID');
+  }
+
+  /** Lists only projects visible to the caller on slr-be, preserving its pagination metadata. */
+  async listProjects(
+    search: string,
+    pageNumber: number,
+    pageSize: number,
+    ctx: SlrRequestContext = {},
+  ) {
+    const query = new URLSearchParams({ search, pageNumber: String(pageNumber), pageSize: String(pageSize) });
+    return this.getParsed(`/projects?${query.toString()}`, ctx, projectListSchema);
   }
 
   /** The runs of an SLR project, newest first, with each artifact's review state. Read with the caller's own token. */
