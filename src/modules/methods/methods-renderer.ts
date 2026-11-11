@@ -1,5 +1,5 @@
 import { toVisibleLine } from '../../shared/utils/invisible-text.js';
-import type { Fact, FactItem, MethodsDraft } from './methods.types.js';
+import type { Fact, FactItem, MethodsDraft, MethodsFactPassage } from './methods.types.js';
 
 /**
  * Layer 2 of the Methods section: wording. This is a fixed English template over the facts of layer 1.
@@ -49,45 +49,60 @@ export function renderMethods(facts: Fact[]): MethodsDraft {
   };
 
   const out: string[] = ['## Methods', ''];
+  const factPassages: MethodsFactPassage[] = [];
   const paragraph = (...lines: string[]) => { out.push(...lines, ''); };
+  const groundedParagraph = (id: string, factKeys: string[], ...lines: string[]) => {
+    const startLine = out.length;
+    paragraph(...lines);
+    factPassages.push({ id, startLine, endLine: out.length - 1, factKeys: [...new Set(factKeys)].sort() });
+  };
   const bullets = (list: FactItem[]) => list.map((item) => `- ${itemText(item)}`);
 
   // Review questions
   out.push('### Review questions', '');
   const questions = items('rq.items');
-  if (questions) paragraph('The review addressed the following research questions:', '', ...bullets(questions));
-  else paragraph('The research questions were not recorded in the review protocol.');
+  if (questions) groundedParagraph('review-questions', ['rq.items'], 'The review addressed the following research questions:', '', ...bullets(questions));
+  else groundedParagraph('review-questions', ['rq.items'], 'The research questions were not recorded in the review protocol.');
 
   // Eligibility criteria
   out.push('### Eligibility criteria', '');
   const inclusion = items('criteria.inclusion');
   const exclusion = items('criteria.exclusion');
-  if (inclusion) paragraph('Studies were included if they met the following criteria:', '', ...bullets(inclusion));
-  else paragraph('The inclusion criteria were not recorded in the review protocol.');
-  if (exclusion) paragraph('Studies were excluded if they met the following criteria:', '', ...bullets(exclusion));
-  else paragraph('The exclusion criteria were not recorded in the review protocol.');
+  if (inclusion) groundedParagraph('inclusion-criteria', ['criteria.inclusion'], 'Studies were included if they met the following criteria:', '', ...bullets(inclusion));
+  else groundedParagraph('inclusion-criteria', ['criteria.inclusion'], 'The inclusion criteria were not recorded in the review protocol.');
+  if (exclusion) groundedParagraph('exclusion-criteria', ['criteria.exclusion'], 'Studies were excluded if they met the following criteria:', '', ...bullets(exclusion));
+  else groundedParagraph('exclusion-criteria', ['criteria.exclusion'], 'The exclusion criteria were not recorded in the review protocol.');
 
   const picocLabels: Array<[string, string]> = [
     ['population', 'Population'], ['intervention', 'Intervention'], ['comparison', 'Comparison'], ['outcome', 'Outcome'], ['context', 'Context'],
   ];
+  const picocKeys: string[] = [];
   const picoc = picocLabels.flatMap(([part, label]) => {
     const list = items(`picoc.${part}`);
+    if (list) picocKeys.push(`picoc.${part}`);
     return list ? [`${label}: ${list.map((item) => clean(item.text)).join('; ')}`] : [];
   });
-  if (picoc.length > 0) paragraph('The review question was framed with the PICOC elements below.', '', ...picoc.map((line) => `- ${line}`));
+  if (picoc.length > 0) groundedParagraph('picoc', picocKeys, 'The review question was framed with the PICOC elements below.', '', ...picoc.map((line) => `- ${line}`));
 
   // Information sources
   out.push('### Information sources and search', '');
   const sources = items('search.sources');
-  if (sources) paragraph(sentence(`The following sources were searched: ${joinList(sources.map((source) => clean(source.text)))}`));
-  else paragraph('The databases and other sources that were searched were not reported in the review record.');
+  if (sources) groundedParagraph('information-sources', ['search.sources'], sentence(`The following sources were searched: ${joinList(sources.map((source) => clean(source.text)))}`));
+  else groundedParagraph('information-sources', ['search.sources'], 'The databases and other sources that were searched were not reported in the review record.');
 
   // Study selection, from the PRISMA flow. Only counts that exist are stated; the rest are listed as not reported.
   out.push('### Study selection', '');
   const notReported: string[] = [];
+  const notReportedFactKeys: string[] = [];
+  const selectionFactKeys = new Set<string>();
   const num = (key: string): number | undefined => {
     const value = count(key);
-    if (value === undefined) notReported.push((byKey.get(key)?.label ?? key).toLowerCase());
+    if (value === undefined) {
+      notReported.push((byKey.get(key)?.label ?? key).toLowerCase());
+      notReportedFactKeys.push(key);
+    } else {
+      selectionFactKeys.add(key);
+    }
     return value;
   };
   const selection: string[] = [];
@@ -138,9 +153,12 @@ export function renderMethods(facts: Fact[]): MethodsDraft {
   const excludedReports = items('prisma.excludedFullText');
   if (excludedReports === undefined) {
     notReported.push((byKey.get('prisma.excludedFullText')?.label ?? '').toLowerCase());
+    notReportedFactKeys.push('prisma.excludedFullText');
   } else if (excludedReports.length === 0) {
     selection.push('No reports were excluded after full-text assessment with a recorded reason.');
+    selectionFactKeys.add('prisma.excludedFullText');
   } else {
+    selectionFactKeys.add('prisma.excludedFullText');
     selection.push(sentence(`Reports were excluded after full-text assessment for the following reasons: ${joinList(
       excludedReports.map((entry) => `${clean(entry.text)} (n = ${entry.count ?? 0})`),
     )}`));
@@ -156,11 +174,11 @@ export function renderMethods(facts: Fact[]): MethodsDraft {
     selection.push(sentence(`The included studies were described in ${reportsOfIncluded} reports`));
   }
 
-  if (selection.length > 0) paragraph(selection.join(' '));
+  if (selection.length > 0) groundedParagraph('study-selection', [...selectionFactKeys], selection.join(' '));
   if (notReported.length > 0) {
-    paragraph(sentence(`The review record does not report the following counts: ${joinList(notReported)}`));
+    groundedParagraph('study-selection-not-reported', notReportedFactKeys, sentence(`The review record does not report the following counts: ${joinList(notReported)}`));
   } else if (selection.length === 0) {
-    paragraph('The review record contains no study selection counts.');
+    groundedParagraph('study-selection-empty', [], 'The review record contains no study selection counts.');
   }
 
   // Data extraction and quality assessment
@@ -181,16 +199,16 @@ export function renderMethods(facts: Fact[]): MethodsDraft {
   } else {
     extractionLines.push(sentence(`A quality assessment was recorded for ${qualityAssessed} of the included studies`));
   }
-  paragraph(extractionLines.join(' '));
+  groundedParagraph('data-extraction-quality', ['extraction.total', 'extraction.completed', 'quality.assessed'], extractionLines.join(' '));
 
   // Characteristics of the studies
   out.push('### Characteristics of the included studies', '');
   const corpusStudies = count('studies.included') ?? 0;
   const yearRange = use('studies.yearRange');
   const years = yearRange.status === 'explicit' && typeof yearRange.value === 'string' ? yearRange.value : undefined;
-  paragraph(years
+  groundedParagraph('study-characteristics', ['studies.included', 'studies.yearRange'], years
     ? sentence(`The review corpus contains ${corpusStudies} studies, published during ${years}`)
     : sentence(`The review corpus contains ${corpusStudies} studies. Their publication years were not reported`));
 
-  return { markdown: `${out.join('\n').trimEnd()}\n`, facts, usedFactKeys: [...used].sort() };
+  return { markdown: `${out.join('\n').trimEnd()}\n`, facts, factPassages, usedFactKeys: [...used].sort() };
 }

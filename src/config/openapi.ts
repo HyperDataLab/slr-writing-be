@@ -87,10 +87,10 @@ export const openApiDocument: OpenAPIV3.Document = {
     },
     '/api/projects/{projectId}/snapshots': {
       post: {
-        tags: ['Snapshots'], summary: 'Import a slr-be run as an immutable snapshot',
-        description: '201 for a new snapshot, 200 when the same run and corpus hash were imported before, 422 SNAPSHOT_NOT_READY (with the report in error.details) when the run has blocking issues. Nothing is stored for a blocked run.',
+        tags: ['Snapshots'], summary: 'Import a JSON snapshot bundle as an immutable manual snapshot',
+        description: 'Accepts a client-posted bundle with run, corpus, artifacts, and optional supplements. The backend validates the bundle and readiness, and marks its provenance as manual. Returns 201 for a new snapshot or 200 when it was already imported. Returns 422 SNAPSHOT_NOT_READY with the report in error.details when the bundle has blocking issues; nothing is stored for a blocked bundle.',
         parameters: [{ name: 'projectId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'Already imported' }, '201': { description: 'Imported' }, '400': { description: 'INVALID_IMPORT_INPUT or RUN_PROJECT_MISMATCH' }, '403': { description: 'MANUAL_IMPORT_DISABLED: importing a run posted by the client is switched off (default in production)' }, '404': { description: 'PROJECT_NOT_FOUND' }, '422': { description: 'SNAPSHOT_NOT_READY' } },
+        responses: { '200': { description: 'Already imported' }, '201': { description: 'Imported' }, '400': { description: 'INVALID_IMPORT_INPUT or RUN_PROJECT_MISMATCH' }, '403': { description: 'MANUAL_IMPORT_DISABLED: client-posted imports are disabled by configuration' }, '404': { description: 'PROJECT_NOT_FOUND' }, '422': { description: 'SNAPSHOT_NOT_READY' } },
       },
       get: {
         tags: ['Snapshots'], summary: 'List the snapshots of the project',

@@ -34,7 +34,7 @@ const envSchema = z.object({
   // H1, H2 and H3 are decided by the OWNER of the SLR project on slr-be. When on, each decision asks slr-be for the caller's role.
   // Keep it on outside of tests: with it off, anyone who owns the writing project could approve.
   REQUIRE_SLR_OWNER_FOR_APPROVAL: booleanEnv(true),
-  // Importing a run posted by the client is not backed by slr-be. Off by default in production.
+  // Client-posted snapshot bundles are schema/readiness checked and marked manual; disable explicitly if uploads are not wanted.
   ALLOW_MANUAL_SNAPSHOT_IMPORT: z.enum(['true', 'false']).optional().transform((value) => (value === undefined ? undefined : value === 'true')),
   FROM_SLR_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
   // LLM. Optional: without a provider and a key, every step that needs a model answers 503 LLM_NOT_CONFIGURED.
@@ -95,7 +95,7 @@ export function parseEnv(source: NodeJS.ProcessEnv) {
     ...parsed,
     // What will really be used: an explicit choice, otherwise Gemini when there is a key, otherwise nothing.
     LLM_PROVIDER: parsed.LLM_PROVIDER ?? (parsed.GEMINI_API_KEY ? ('gemini' as const) : ('none' as const)),
-    ALLOW_MANUAL_SNAPSHOT_IMPORT: parsed.ALLOW_MANUAL_SNAPSHOT_IMPORT ?? parsed.NODE_ENV !== 'production',
+    ALLOW_MANUAL_SNAPSHOT_IMPORT: parsed.ALLOW_MANUAL_SNAPSHOT_IMPORT ?? true,
   };
 }
 
