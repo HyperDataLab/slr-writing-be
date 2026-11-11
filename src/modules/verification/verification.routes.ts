@@ -11,6 +11,55 @@ export const verificationRouter = Router({ mergeParams: true });
 
 type Params = { projectId: string; snapshotId: string; version?: string };
 
+function writeSseEvent(res: import('express').Response, event: string, data: unknown) {
+  if (!res.destroyed && !res.writableEnded) {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+}
+
+/**
+ * POST /api/projects/:projectId/snapshots/:snapshotId/manuscript/verification/run/stream
+ * Streams the real start/completion state of each sequential quality gate, then returns the final report.
+ */
+verificationRouter.post('/verification/run/stream', async (req: AuthenticatedRequest & Request<Params>, res) => {
+  const { projectId, snapshotId } = req.params;
+  const actor = req.user!.uid;
+
+  res.status(200).set({
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+
+  const keepAlive = setInterval(() => {
+    if (!res.destroyed && !res.writableEnded) res.write(': keep-alive\n\n');
+  }, 15_000);
+  keepAlive.unref();
+
+  try {
+    const result = await runVerification({
+      projectId,
+      snapshotId,
+      actor,
+      onGateProgress: (progress) => writeSseEvent(res, 'progress', progress),
+    });
+    writeSseEvent(res, 'complete', { created: result.created, report: result.view });
+  } catch (error) {
+    const details = error as { message?: string; code?: string; statusCode?: number; requestId?: string };
+    writeSseEvent(res, 'error', {
+      message: details?.message ?? 'Verification failed.',
+      code: details?.code ?? 'VERIFICATION_FAILED',
+      status: details?.statusCode ?? 500,
+      requestId: details?.requestId,
+    });
+  } finally {
+    clearInterval(keepAlive);
+    if (!res.destroyed && !res.writableEnded) res.end();
+  }
+});
+
 /**
  * POST /api/projects/:projectId/snapshots/:snapshotId/manuscript/verification/run
  * Executes Quality Gates G1-G7 and generates an immutable VerificationReport revision.

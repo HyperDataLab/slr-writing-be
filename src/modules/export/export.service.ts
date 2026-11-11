@@ -83,6 +83,7 @@ export async function getH3Status(
 
   // 1. Check Blueprint (H1)
   const approvedBlueprint = await getApprovedBlueprint(manuscript.id, db);
+  let requiredSectionsDrafted = false;
   if (!approvedBlueprint) {
     blockingReasons.push('Manuscript blueprint (H1) has not been approved by the project Owner');
   }
@@ -102,17 +103,21 @@ export async function getH3Status(
   let omittedSections: string[] = [];
   let undraftableSections = new Set<string>();
   if (approvedBlueprint) {
+    requiredSectionsDrafted = true;
     const computed = await loadRequiredSections(manuscript.id, approvedBlueprint.content as unknown as BlueprintContent, db);
     requiredSections = [...computed.required, ...computed.synthesis];
     omittedSections = computed.omitted;
     undraftableSections = new Set(computed.undraftable);
     const drafted = new Set(sections.filter((sec) => sec.revisions.length > 0).map((sec) => sec.sectionKey));
     for (const key of requiredSections) {
-      if (!drafted.has(key)) blockingReasons.push(
-          undraftableSections.has(key)
-            ? `Required section '${key}' has not been drafted yet and no paragraph plan for it is ready to draft; resolve the missing evidence in the paragraph plans first`
-            : `Required section '${key}' has not been drafted yet`,
-        );
+      if (!drafted.has(key)) {
+        requiredSectionsDrafted = false;
+        blockingReasons.push(
+            undraftableSections.has(key)
+              ? `Required section '${key}' has not been drafted yet and no paragraph plan for it is ready to draft; resolve the missing evidence in the paragraph plans first`
+              : `Required section '${key}' has not been drafted yet`,
+          );
+      }
     }
   }
 
@@ -127,12 +132,14 @@ export async function getH3Status(
     }
   }
 
+  let allH2Approved = sections.length > 0;
   if (sections.length === 0) {
     blockingReasons.push('No manuscript sections have been generated or drafted yet');
   } else {
     for (const sec of sections) {
       const latestRev = sec.revisions[0];
       if (!latestRev) {
+        allH2Approved = false;
         blockingReasons.push(`Section '${sec.sectionKey}' has no revisions`);
         continue;
       }
@@ -144,6 +151,7 @@ export async function getH3Status(
       });
 
       if (statusOf(decision) !== 'APPROVED') {
+        allH2Approved = false;
         blockingReasons.push(
           `Section '${sec.sectionKey}' draft revision v${latestRev.version} is not approved (current status: ${statusOf(decision)})`
         );
@@ -153,6 +161,7 @@ export async function getH3Status(
 
   // 3. Check Verification Report (M8)
   let latestVerification: VerificationReportView | null = null;
+  let verificationCurrent = false;
   try {
     latestVerification = await getLatestVerificationReport(params.projectId, params.snapshotId, db);
   } catch (err) {
@@ -191,7 +200,8 @@ export async function getH3Status(
         .filter((sec) => sec.revisions[0])
         .map((sec) => ({ sectionKey: sec.sectionKey, contentHash: sec.revisions[0].contentHash, facts: sec.revisions[0].facts })),
     );
-    if ((latestVerification.summary as { verifiedContentHash?: string }).verifiedContentHash !== currentFingerprint) {
+    verificationCurrent = (latestVerification.summary as { verifiedContentHash?: string }).verifiedContentHash === currentFingerprint;
+    if (!verificationCurrent) {
       blockingReasons.push(
         'The verification report is stale: sections changed after it was run. Run POST /verification/run again',
       );
@@ -239,6 +249,16 @@ export async function getH3Status(
   return {
     h3Status,
     canApprove,
+    readiness: {
+      h1Approved: Boolean(approvedBlueprint),
+      requiredSectionsDrafted,
+      allH2Approved,
+      verificationCurrent,
+      qualityGates: (['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'] as const).map((gateId) => ({
+        gateId,
+        status: latestVerification?.gates[gateId]?.status ?? 'NOT_RUN',
+      })),
+    },
     blockingReasons,
     compositeTargetHash,
     requiredSections,
