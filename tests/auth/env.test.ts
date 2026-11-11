@@ -34,10 +34,10 @@ describe('parseEnv production rules', () => {
     expect(parseEnv({ NODE_ENV: 'test' }).FIREBASE_PROJECT_ID).toBeUndefined();
   });
 
-  it('allows manual snapshot import outside production and blocks it in production by default', () => {
+  it('allows manual snapshot import in every environment by default', () => {
     expect(parseEnv({ NODE_ENV: 'development' }).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(true);
     expect(parseEnv({ NODE_ENV: 'test' }).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(true);
-    expect(parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'p' }).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(false);
+    expect(parseEnv({ NODE_ENV: 'production', FIREBASE_PROJECT_ID: 'p' }).ALLOW_MANUAL_SNAPSHOT_IMPORT).toBe(true);
   });
 
   it('lets an explicit setting win in both directions', () => {

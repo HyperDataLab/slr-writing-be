@@ -444,7 +444,7 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 - `src/modules/auth/firebase-verifier.ts`: xác minh ID token bằng `firebase-admin` (chữ ký, issuer, audience, hạn dùng), kiểm tra lại `aud` đúng bằng project id và bắt buộc có `aud`, giới hạn thời gian chờ 10 s, không bao giờ ném lỗi hay lộ lý do. Đăng ký lúc khởi động trong `server.ts` qua `configureAuth()` khi có `FIREBASE_PROJECT_ID`.
 - `parseEnv` (`src/config/env.ts`): production (hoặc thiếu `NODE_ENV`) mà thiếu `FIREBASE_PROJECT_ID` thì **không khởi động**; `FIREBASE_PROJECT_ID` đặt cùng `DEV_AUTH_ENABLED=true` cũng không khởi động (nếu không, ai không có token vẫn đóng giả được bằng `X-Dev-User-Id`). Giá trị rỗng coi như chưa đặt.
 - Liên kết project: `POST /projects` hỏi `slr-be` (`GET /api/projects/:id` bằng token người gọi). Không có quyền hoặc project không tồn tại đều trả cùng một câu 403 `SLR_PROJECT_ACCESS_DENIED` để không dò được ID. Kiểm tra này chạy trước kiểm tra trùng.
-- Import tay `POST /snapshots` trả 403 `MANUAL_IMPORT_DISABLED` khi `ALLOW_MANUAL_SNAPSHOT_IMPORT` tắt (mặc định tắt ở production). `validate` và xem danh sách vẫn dùng được.
+- Import JSON bundle `POST /snapshots` được bật mặc định trong mọi môi trường, chỉ cho owner đã xác thực và luôn ghi `sourceSystem='manual'`; đặt `ALLOW_MANUAL_SNAPSHOT_IMPORT=false` để tắt. `validate` và xem danh sách vẫn dùng được khi tắt.
 - `POST /snapshots/from-slr` giới hạn theo người dùng (`FROM_SLR_RATE_LIMIT_PER_MINUTE`, mặc định 20/phút) → 429 `RATE_LIMITED`. Đếm trong bộ nhớ của một tiến trình.
 - Tên và `slrProjectId` chứa NUL hoặc surrogate lẻ bị từ chối 400 thay vì lỗi 500 từ database.
 
@@ -455,7 +455,7 @@ Sau đó (bằng API với token `dev-leader_user`): `POST synthesis/start` → 
 **Lỗ hổng đã biết (ưu tiên cao):**
 
 1. ~~Liên kết project không kiểm tra quyền~~ → đã xử lý ở M1.
-2. ~~Import tay lưu dữ liệu tự bịa~~ → đã gắn nhãn `manual` và tắt mặc định ở production.
+2. ~~Import tay lưu dữ liệu tự bịa~~ → đã gắn nhãn `manual`, kiểm tra schema/readiness và yêu cầu owner đã xác thực; có thể tắt bằng `ALLOW_MANUAL_SNAPSHOT_IMPORT=false`.
 3. ~~Không có rate limit~~ → đã có cho `from-slr` (đếm trong bộ nhớ, một tiến trình).
 4. Swagger công khai ở production; `helmet` đang tắt CSP; `x-request-id` từ client chưa được làm sạch; `FRONTEND_URL` chưa kiểm tra.
 5. Dòng con của snapshot (kể cả `SnapshotSupplement`, `SnapshotArtifact`) vẫn UPDATE được ở mức DB; "bất biến" hiện do tầng service giữ.
@@ -491,7 +491,7 @@ npm run dev                 # http://localhost:5100  (Swagger: /api-docs)
 | `FIREBASE_CHECK_REVOKED` | `false` | Từ chối cả token bị thu hồi; cần service account |
 | `FIREBASE_AUTH_EMULATOR_HOST` | (trống) | Dev: trỏ `firebase-admin` tới Auth emulator (ví dụ `localhost:9099`, do `npm run emulators` của `slr-be` mở). Cần `FIREBASE_PROJECT_ID` trùng project emulator (`slr-system-dev`) và `DEV_AUTH_ENABLED=false`. **Từ chối khởi động** nếu `NODE_ENV` không phải `development`/`test`, vì token của emulator giả mạo được |
 | `SLR_VERIFY_PROJECT_ACCESS` | `true` | Hỏi `slr-be` về quyền khi liên kết project |
-| `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` ngoài production, `false` ở production | Cho phép import tay |
+| `ALLOW_MANUAL_SNAPSHOT_IMPORT` | `true` | Cho phép owner đã xác thực import JSON snapshot bundle; snapshot được đánh dấu nguồn `manual`. Đặt `false` để tắt |
 | `FROM_SLR_RATE_LIMIT_PER_MINUTE` | 20 | Số lần gọi `from-slr` mỗi người mỗi phút |
 | `GEMINI_API_KEY` | (trống) | Khoá Gemini. **Bí mật**: chỉ đặt trong `.env` cục bộ hoặc biến môi trường triển khai |
 | `LLM_PROVIDER` | tự chọn | `gemini` hoặc `none`; không đặt = `gemini` nếu có khoá, ngược lại `none` |

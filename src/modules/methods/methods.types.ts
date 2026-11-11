@@ -42,6 +42,15 @@ export interface MethodsInput {
 export interface MethodsDraft {
   markdown: string;
   facts: Fact[];
+  /** Exact Markdown line ranges whose wording is grounded in these facts. End line is exclusive. */
+  factPassages: MethodsFactPassage[];
   /** Keys of the facts the text used. */
   usedFactKeys: string[];
+}
+
+export interface MethodsFactPassage {
+  id: string;
+  startLine: number;
+  endLine: number;
+  factKeys: string[];
 }

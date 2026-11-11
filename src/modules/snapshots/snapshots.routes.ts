@@ -55,12 +55,12 @@ router.post('/from-slr', fromSlrLimiter, async (req: AuthenticatedRequest, res, 
   } catch (error) { return next(error); }
 });
 
-// Import a run. 201 for a new snapshot, 200 when the same run and corpus hash were imported before.
+// Import a client-posted bundle. 201 for a new snapshot, 200 when the same content was imported before.
 router.post('/', async (req: AuthenticatedRequest, res, next) => {
   try {
-    // A body posted by the client is not backed by slr-be, so production refuses it unless it is switched on.
+    // The client-posted snapshot bundle is validated and recorded with manual provenance; deployments can disable this path.
     if (!env.ALLOW_MANUAL_SNAPSHOT_IMPORT) {
-      throw new ForbiddenError('Importing a run by hand is disabled; use /snapshots/from-slr', 'MANUAL_IMPORT_DISABLED');
+      throw new ForbiddenError('Importing a snapshot bundle by hand is disabled; use /snapshots/from-slr', 'MANUAL_IMPORT_DISABLED');
     }
     const result = await importSnapshot({ projectId: req.params.projectId, importedBy: req.user!.uid, input: req.body });
     return res.status(result.created ? 201 : 200).json({
