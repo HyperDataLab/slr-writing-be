@@ -497,7 +497,7 @@ export async function getSectionDraftView(params: {
   sectionKey: string;
   version?: number;
 }): Promise<DraftSectionView> {
-  const { snapshot, manuscript } = await loadDraftingContext(params.projectId, params.snapshotId);
+  const { manuscript } = await loadDraftingContext(params.projectId, params.snapshotId);
 
   const section = await prisma.manuscriptSection.findUnique({
     where: { manuscriptId_sectionKey: { manuscriptId: manuscript.id, sectionKey: params.sectionKey } },

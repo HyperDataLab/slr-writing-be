@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 import { env } from '../config/env.js';
@@ -143,7 +143,7 @@ async function runE2ePipeline() {
     if (f.study_id === 'demo_paper_repair_2024') f.evidence_ids = ['E-02'];
   }
 
-  const { snapshot, created } = await importSnapshot({
+  const { snapshot } = await importSnapshot({
     projectId: project.id,
     importedBy: actor,
     input: rawInput,
@@ -221,7 +221,7 @@ async function runE2ePipeline() {
   console.log(`  ✓ Results Draft Rev:  v${draftResult.revision.version}`);
   console.log(`  ✓ Content Hash:       ${draftResult.revision.contentHash}`);
 
-  const h2Approval = await decideSectionRevision({
+  await decideSectionRevision({
     projectId: project.id,
     snapshotId: snapshot.id,
     slrProjectId,
@@ -258,7 +258,7 @@ async function runE2ePipeline() {
     console.log(`  ✓ H2 Decision:        APPROVED for '${sectionKey}' v${extraDraft.revision.version}`);
   }
 
-  const h2MethodsApproval = await decideSectionRevision({
+  await decideSectionRevision({
     projectId: project.id,
     snapshotId: snapshot.id,
     slrProjectId,
