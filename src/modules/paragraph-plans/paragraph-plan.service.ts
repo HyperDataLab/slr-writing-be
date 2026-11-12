@@ -4,7 +4,7 @@ import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-
 import { hashOfJson } from '../../shared/utils/stable-json.js';
 import { getApprovedBlueprint } from '../blueprint/blueprint.service.js';
 import type { BlueprintContent } from '../blueprint/blueprint.types.js';
-import { ensureManuscript, exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
+import { exclusiveForSnapshot, takeSnapshotLock, WRITE_TRANSACTION_OPTIONS } from '../manuscripts/manuscript.store.js';
 import { generateParagraphPlans } from './paragraph-plan-generator.js';
 import { hasBlockingIssue, validateParagraphPlans } from './paragraph-plan-validator.js';
 import {
@@ -245,7 +245,7 @@ export async function updateParagraphPlans(params: {
   baseVersion: number;
   content: ParagraphPlanContent;
 }) {
-  const { context, snapshotId, manuscript, approvedBlueprint } = await loadContext(params.projectId, params.snapshotId);
+  const { snapshotId, manuscript, approvedBlueprint } = await loadContext(params.projectId, params.snapshotId);
 
   // Validate schema and storable bounds
   const checked = paragraphPlanContentSchema.safeParse(params.content);
