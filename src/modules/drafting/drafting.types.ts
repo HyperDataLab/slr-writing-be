@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { showsNothing } from '../../shared/utils/invisible-text.js';
-import { findStorableProblem, hasUnstorableText } from '../../shared/utils/storable.js';
+import { hasUnstorableText } from '../../shared/utils/storable.js';
 import type { Approval, SectionRevision } from '../../generated/prisma/client.js';
 import type { ApprovalStatus } from '../approvals/approvals.service.js';
 import type { LlmModelInfo } from '../llm/llm.types.js';

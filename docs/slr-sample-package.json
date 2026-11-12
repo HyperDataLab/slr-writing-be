@@ -1,0 +1,2997 @@
+{
+ "run": {
+  "run_id": "run-20261030101014-gbekjc",
+  "project_id": "proj_slr_artifacts_demo",
+  "generated_at": "2026-10-30T10:10:14.868Z",
+  "generated_by": "leader_user",
+  "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5",
+  "corpus_version": "slr-artifact-corpus-v2",
+  "generator_version": "1.1.0",
+  "options": {
+   "a3Mode": "deterministic",
+   "contextGroupBy": "outcome",
+   "sparseThreshold": 1
+  },
+  "a3": {
+   "mode": "deterministic",
+   "validation_status": "valid",
+   "error_count": 0,
+   "warning_count": 0
+  },
+  "reviews": [
+   {
+    "artifact_type": "A1",
+    "decision": "APPROVED",
+    "note": "dev data check",
+    "reviewer_id": "leader_user",
+    "at": "2026-10-30T10:10:15.086Z"
+   },
+   {
+    "artifact_type": "A2",
+    "decision": "APPROVED",
+    "note": "dev data check",
+    "reviewer_id": "leader_user",
+    "at": "2026-10-30T10:10:15.144Z"
+   },
+   {
+    "artifact_type": "A7",
+    "decision": "APPROVED",
+    "note": "dev data check",
+    "reviewer_id": "leader_user",
+    "at": "2026-10-30T10:10:15.222Z"
+   },
+   {
+    "artifact_type": "A10",
+    "decision": "APPROVED",
+    "note": "dev data check",
+    "reviewer_id": "leader_user",
+    "at": "2026-10-30T10:10:15.299Z"
+   }
+  ],
+  "artifacts": [
+   {
+    "artifact_type": "A1",
+    "artifact_id": "run-20261030101014-gbekjc-A1",
+    "content_hash": "cf48e514dd6a36900d4797e7aecf02c68dd03a687182b0f3caef57548051d4cb",
+    "review_status": "approved",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A2",
+    "artifact_id": "run-20261030101014-gbekjc-A2",
+    "content_hash": "dc1c8b08e311824e8413031c0f2ed9e610db1f79a769824dc09af5d20536ece7",
+    "review_status": "approved",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A3",
+    "artifact_id": "run-20261030101014-gbekjc-A3",
+    "content_hash": "87637dd90cf62d18ca98c595e67d1530262dd185ab9fc5781bb26dea4d95f827",
+    "review_status": "needs_human_review",
+    "validation_status": "valid"
+   },
+   {
+    "artifact_type": "A4",
+    "artifact_id": "run-20261030101014-gbekjc-A4",
+    "content_hash": "7f970572c1c31297eb39fb08b65a47958c06f3bfeda5f965349e3848d5504479",
+    "review_status": "unreviewed",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A5",
+    "artifact_id": "run-20261030101014-gbekjc-A5",
+    "content_hash": "fa2790e598b4cfd2b45434a0f29bbebbe86c3b742a58bd08564d677c39183b12",
+    "review_status": "unreviewed",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A6",
+    "artifact_id": "run-20261030101014-gbekjc-A6",
+    "content_hash": "aa124ee1cca19af8c489cccaf3f282bd9f5d0bf858b327700a02c3aa8e5f0094",
+    "review_status": "unreviewed",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A7",
+    "artifact_id": "run-20261030101014-gbekjc-A7",
+    "content_hash": "a505ab9fda359e367860651ad6c6d28721e9bdfb34315df3ef32bf6c99638a60",
+    "review_status": "approved",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A8",
+    "artifact_id": "run-20261030101014-gbekjc-A8",
+    "content_hash": "c780eb202bf220dbf8e136c52f72913aedac595149d4e5d2d7ae2d1e1ee59fa0",
+    "review_status": "unreviewed",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A9",
+    "artifact_id": "run-20261030101014-gbekjc-A9",
+    "content_hash": "b002f21217380f3c49de317b9bbd56c7679396f888657340af68bcbec376c098",
+    "review_status": "needs_human_review",
+    "validation_status": "not_applicable"
+   },
+   {
+    "artifact_type": "A10",
+    "artifact_id": "run-20261030101014-gbekjc-A10",
+    "content_hash": "4823b138c3a8b407181eb98904734bbee281f8fa1e16ead8e2f0d8bea6644046",
+    "review_status": "approved",
+    "validation_status": "not_applicable"
+   }
+  ]
+ },
+ "corpus": {
+  "corpus_version": "slr-artifact-corpus-v2",
+  "project_id": "proj_slr_artifacts_demo",
+  "project": {
+   "title": "Demo: LLM-assisted Software Engineering (SLR artifacts)"
+  },
+  "research_questions": [
+   {
+    "rq_id": "rq1",
+    "code": "RQ1",
+    "question": "Which LLM-based tools are evaluated for code generation and program repair?"
+   },
+   {
+    "rq_id": "rq2",
+    "code": "RQ2",
+    "question": "How correct and how secure is the code that LLM assistants produce?"
+   },
+   {
+    "rq_id": "rq3",
+    "code": "RQ3",
+    "question": "What is the measured effect of AI assistants on developer productivity?"
+   }
+  ],
+  "picoc": {
+   "population": [
+    "Software developers",
+    "Open-source projects"
+   ],
+   "intervention": [
+    "LLM code assistants",
+    "GitHub Copilot",
+    "Codex"
+   ],
+   "comparison": [
+    "Manual coding",
+    "Traditional repair tools"
+   ],
+   "outcome": [
+    "Functional correctness",
+    "Security weaknesses",
+    "Task completion time"
+   ],
+   "context": [
+    "Benchmarks and industrial settings, 2021-2024"
+   ]
+  },
+  "studies": [
+   {
+    "study_id": "demo_paper_codex_2021",
+    "title": "Evaluating Large Language Models Trained on Code",
+    "authors": [
+     "Mark Chen",
+     "Jerry Tworek",
+     "Heewoo Jun"
+    ],
+    "year": 2021,
+    "doi": "10.48550/arXiv.2107.03374",
+    "venue": "arXiv preprint",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   },
+   {
+    "study_id": "demo_paper_copilot_2022",
+    "title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+    "authors": [
+     "Alice Johnson",
+     "Bob Miller",
+     "Carol Danvers"
+    ],
+    "year": 2022,
+    "doi": "10.1145/3510003.3510050",
+    "venue": "ICSE 2022",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   },
+   {
+    "study_id": "demo_paper_productivity_2023",
+    "title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+    "authors": [
+     "Sida Peng",
+     "Eirini Kalliamvakou",
+     "Peter Cihon"
+    ],
+    "year": 2023,
+    "doi": "10.48550/arXiv.2302.06590",
+    "venue": "arXiv preprint",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   },
+   {
+    "study_id": "demo_paper_repair_2024",
+    "title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+    "authors": [
+     "Chunqiu Steven Xia",
+     "Yuxiang Wei",
+     "Lingming Zhang"
+    ],
+    "year": 2024,
+    "doi": "10.1109/ICSE48619.2023.00129",
+    "venue": "ICSE 2023",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   },
+   {
+    "study_id": "demo_paper_security_2023",
+    "title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+    "authors": [
+     "Yujia Fu",
+     "Peng Liang",
+     "Amjed Tahir"
+    ],
+    "year": 2023,
+    "doi": "10.1145/3643674",
+    "venue": "ACM Transactions on Software Engineering and Methodology",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   },
+   {
+    "study_id": "demo_paper_swebench_2024",
+    "title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+    "authors": [
+     "Carlos Jimenez",
+     "John Yang",
+     "Alexander Wettig"
+    ],
+    "year": 2024,
+    "doi": "10.48550/arXiv.2310.06770",
+    "venue": "ICLR 2024",
+    "keywords": [],
+    "extraction": {
+     "status": "COMPLETED",
+     "template_id": "tpl_proj_slr_artifacts_demo",
+     "template_version": 1,
+     "consensus_version": 1,
+     "completed_at": "2026-10-30T10:08:22.146Z"
+    },
+    "document_ids": []
+   }
+  ],
+  "documents": [],
+  "findings": [
+   {
+    "finding_id": "F:demo_paper_codex_2021:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_codex_2021",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Repeated sampling from the model is a surprisingly effective strategy.",
+    "values": [
+     "Repeated sampling from the model is a surprisingly effective strategy."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_codex_2021:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_codex_2021",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+    "values": [
+     "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_codex_2021:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_codex_2021",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "50",
+    "values": [
+     "50"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_codex_2021:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_codex_2021",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Our evaluation also shows that the model struggles with long chains of operations.",
+    "values": [
+     "Our evaluation also shows that the model struggles with long chains of operations."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_codex_2021:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_codex_2021",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+    "values": [
+     "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_copilot_2022:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_copilot_2022",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Functional correctness varies strongly by language and by task difficulty.",
+    "values": [
+     "Functional correctness varies strongly by language and by task difficulty."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_copilot_2022:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_copilot_2022",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "GitHub Copilot is an AI pair programmer.",
+    "values": [
+     "GitHub Copilot is an AI pair programmer."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_copilot_2022:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_copilot_2022",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "13",
+    "values": [
+     "13"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_copilot_2022:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_copilot_2022",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Copilot suggestions are frequently syntactically valid but semantically wrong.",
+    "values": [
+     "Copilot suggestions are frequently syntactically valid but semantically wrong."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_copilot_2022:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_copilot_2022",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Functional correctness varies strongly by language and by task difficulty.",
+    "values": [
+     "Functional correctness varies strongly by language and by task difficulty."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_productivity_2023:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_productivity_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "We did not measure long-term code quality in this experiment.",
+    "values": [
+     "We did not measure long-term code quality in this experiment."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_productivity_2023:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_productivity_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+    "values": [
+     "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_productivity_2023:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_productivity_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "94",
+    "values": [
+     "94"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_productivity_2023:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_productivity_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+    "values": [
+     "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_productivity_2023:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_productivity_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "The effect was larger for less experienced developers.",
+    "values": [
+     "The effect was larger for less experienced developers."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_repair_2024:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_repair_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Results on contaminated benchmarks may be overstated.",
+    "values": [
+     "Results on contaminated benchmarks may be overstated."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_repair_2024:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_repair_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "We study how large language models perform on automated program repair across several benchmarks.",
+    "values": [
+     "We study how large language models perform on automated program repair across several benchmarks."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_repair_2024:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_repair_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "30",
+    "values": [
+     "30"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_repair_2024:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_repair_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Results on contaminated benchmarks may be overstated.",
+    "values": [
+     "Results on contaminated benchmarks may be overstated."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_repair_2024:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_repair_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "We study how large language models perform on automated program repair across several benchmarks.",
+    "values": [
+     "We study how large language models perform on automated program repair across several benchmarks."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_security_2023:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_security_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+    "values": [
+     "About 35% of the snippets contain security weaknesses across several CWE categories."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_security_2023:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_security_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Developers rarely review generated code for vulnerabilities.",
+    "values": [
+     "Developers rarely review generated code for vulnerabilities."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_security_2023:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_security_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "32",
+    "values": [
+     "32"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_security_2023:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_security_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+    "values": [
+     "About 35% of the snippets contain security weaknesses across several CWE categories."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_security_2023:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_security_2023",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "Static analysis is able to detect most of these weaknesses.",
+    "values": [
+     "Static analysis is able to detect most of these weaknesses."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_swebench_2024:fld_title_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_swebench_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+    "values": [
+     "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_swebench_2024:fld_authors_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_swebench_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "The best evaluated model resolves only 1.96% of the issues.",
+    "values": [
+     "The best evaluated model resolves only 1.96% of the issues."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_swebench_2024:fld_year_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_swebench_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "55",
+    "values": [
+     "55"
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_swebench_2024:fld_summary_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_swebench_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "The best evaluated model resolves only 1.96% of the issues.",
+    "values": [
+     "The best evaluated model resolves only 1.96% of the issues."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   },
+   {
+    "finding_id": "F:demo_paper_swebench_2024:fld_conclusions_proj_slr_artifacts_demo",
+    "study_id": "demo_paper_swebench_2024",
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "role": null,
+    "role_source": "unmapped",
+    "value_text": "The benchmark can be extended as new issues appear.",
+    "values": [
+     "The benchmark can be extended as new issues appear."
+    ],
+    "option_ids": [],
+    "is_not_reported": false,
+    "matrix": null,
+    "evidence_ids": []
+   }
+  ],
+  "evidence": [],
+  "claims": [
+   {
+    "claim_id": "efC0ir0a0hTezIGP1QyF",
+    "origin": "researcher_theme",
+    "title": "Theme for RQ1",
+    "description": "Development theme for the writing-module data check",
+    "research_question_id": "rq1",
+    "items": [
+     {
+      "item_id": "fy1az8WRSYyXpgwrY6nq",
+      "extracted_data_value_id": "demo_paper_copilot_2022__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_copilot_2022",
+       "paper_title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "Functional correctness varies strongly by language and by task difficulty.",
+       "string_value": "Functional correctness varies strongly by language and by task difficulty.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:03.867Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_copilot_2022:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_copilot_2022",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "NZK0WZV73PjKf75UdM9M",
+      "extracted_data_value_id": "demo_paper_repair_2024__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_repair_2024",
+       "paper_title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "Results on contaminated benchmarks may be overstated.",
+       "string_value": "Results on contaminated benchmarks may be overstated.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.170Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_repair_2024:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_repair_2024",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "lpO60YhDo9VGFEilZ2x7",
+      "extracted_data_value_id": "demo_paper_codex_2021__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_codex_2021",
+       "paper_title": "Evaluating Large Language Models Trained on Code",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "Repeated sampling from the model is a surprisingly effective strategy.",
+       "string_value": "Repeated sampling from the model is a surprisingly effective strategy.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.318Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_codex_2021:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_codex_2021",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "FNP5YGJnKO4dOtk63vhZ",
+      "extracted_data_value_id": "demo_paper_security_2023__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_security_2023",
+       "paper_title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+       "string_value": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.478Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_security_2023:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_security_2023",
+      "value_drift": "unchanged"
+     }
+    ]
+   },
+   {
+    "claim_id": "TpaVaqqDCt0sbQDqQ20d",
+    "origin": "researcher_theme",
+    "title": "Theme for RQ3",
+    "description": "Development theme for the writing-module data check",
+    "research_question_id": "rq3",
+    "items": [
+     {
+      "item_id": "eOuR6kzcqmPRFw1CBg6N",
+      "extracted_data_value_id": "demo_paper_codex_2021__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_codex_2021",
+       "paper_title": "Evaluating Large Language Models Trained on Code",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+       "string_value": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:14.174Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_codex_2021:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_codex_2021",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "fjgPWJ2FIGGOPCGCo4n9",
+      "extracted_data_value_id": "demo_paper_security_2023__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_security_2023",
+       "paper_title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "Developers rarely review generated code for vulnerabilities.",
+       "string_value": "Developers rarely review generated code for vulnerabilities.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:14.284Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_security_2023:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_security_2023",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "AKxeaTIxwNmth6RjVabq",
+      "extracted_data_value_id": "demo_paper_swebench_2024__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_swebench_2024",
+       "paper_title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "The best evaluated model resolves only 1.96% of the issues.",
+       "string_value": "The best evaluated model resolves only 1.96% of the issues.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:14.444Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_swebench_2024:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_swebench_2024",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "YmBVRZ1exPRdBPESNdPD",
+      "extracted_data_value_id": "demo_paper_productivity_2023__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_productivity_2023",
+       "paper_title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+       "string_value": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:14.607Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_productivity_2023:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_productivity_2023",
+      "value_drift": "unchanged"
+     }
+    ]
+   },
+   {
+    "claim_id": "wlawHgiD8ZACCRxeNGFX",
+    "origin": "researcher_theme",
+    "title": "Theme for RQ2",
+    "description": "Development theme for the writing-module data check",
+    "research_question_id": "rq2",
+    "items": [
+     {
+      "item_id": "7cRefyaczdQ53mIC9pvx",
+      "extracted_data_value_id": "demo_paper_swebench_2024__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_swebench_2024",
+       "paper_title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+       "string_value": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.629Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_swebench_2024:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_swebench_2024",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "E4vkI0Z88XHu7pl94OxI",
+      "extracted_data_value_id": "demo_paper_productivity_2023__fld_title_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_productivity_2023",
+       "paper_title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+       "field_id": "fld_title_proj_slr_artifacts_demo",
+       "field_name": "Tiêu đề nghiên cứu",
+       "display_value": "We did not measure long-term code quality in this experiment.",
+       "string_value": "We did not measure long-term code quality in this experiment.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.756Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_productivity_2023:fld_title_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_productivity_2023",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "x4GENPd9iLVKHJaN125n",
+      "extracted_data_value_id": "demo_paper_copilot_2022__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_copilot_2022",
+       "paper_title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "GitHub Copilot is an AI pair programmer.",
+       "string_value": "GitHub Copilot is an AI pair programmer.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:13.895Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_copilot_2022:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_copilot_2022",
+      "value_drift": "unchanged"
+     },
+     {
+      "item_id": "I96SElEQPkq1NVIjU5gB",
+      "extracted_data_value_id": "demo_paper_repair_2024__fld_authors_proj_slr_artifacts_demo",
+      "notes": null,
+      "cited_snapshot": {
+       "paper_id": "demo_paper_repair_2024",
+       "paper_title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+       "field_id": "fld_authors_proj_slr_artifacts_demo",
+       "field_name": "Tác giả",
+       "display_value": "We study how large language models perform on automated program repair across several benchmarks.",
+       "string_value": "We study how large language models perform on automated program repair across several benchmarks.",
+       "numeric_value": null,
+       "boolean_value": null,
+       "option_id": null
+      },
+      "created_by": "leader_user",
+      "created_at": "2026-10-30T10:10:14.036Z",
+      "link_status": "resolved",
+      "unresolved_reason": null,
+      "finding_id": "F:demo_paper_repair_2024:fld_authors_proj_slr_artifacts_demo",
+      "study_id": "demo_paper_repair_2024",
+      "value_drift": "unchanged"
+     }
+    ]
+   }
+  ],
+  "quality": [
+   {
+    "study_id": "demo_paper_codex_2021",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   },
+   {
+    "study_id": "demo_paper_copilot_2022",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   },
+   {
+    "study_id": "demo_paper_productivity_2023",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   },
+   {
+    "study_id": "demo_paper_repair_2024",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   },
+   {
+    "study_id": "demo_paper_security_2023",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   },
+   {
+    "study_id": "demo_paper_swebench_2024",
+    "status": "NOT_ASSESSED",
+    "final_decision": null,
+    "final_score": null,
+    "method": null,
+    "resolved_by": null,
+    "resolved_at": null,
+    "resolution_notes": null,
+    "assessments": []
+   }
+  ],
+  "quality_instruments": [],
+  "extraction_decisions": [],
+  "field_roles": [
+   {
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_title_proj_slr_artifacts_demo",
+    "field_name": "Tiêu đề nghiên cứu",
+    "section_name": "Thông tin nghiên cứu",
+    "field_type": 0,
+    "role": null,
+    "source": "unmapped",
+    "options": []
+   },
+   {
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_authors_proj_slr_artifacts_demo",
+    "field_name": "Tác giả",
+    "section_name": "Thông tin nghiên cứu",
+    "field_type": 0,
+    "role": null,
+    "source": "unmapped",
+    "options": []
+   },
+   {
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_year_proj_slr_artifacts_demo",
+    "field_name": "Năm xuất bản",
+    "section_name": "Thông tin nghiên cứu",
+    "field_type": 1,
+    "role": null,
+    "source": "unmapped",
+    "options": []
+   },
+   {
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_summary_proj_slr_artifacts_demo",
+    "field_name": "Phát hiện chính",
+    "section_name": "Kết quả chính",
+    "field_type": 0,
+    "role": null,
+    "source": "unmapped",
+    "options": []
+   },
+   {
+    "template_id": "tpl_proj_slr_artifacts_demo",
+    "template_version": 1,
+    "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+    "field_name": "Kết luận",
+    "section_name": "Kết quả chính",
+    "field_type": 0,
+    "role": null,
+    "source": "unmapped",
+    "options": []
+   }
+  ],
+  "issues": [],
+  "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5",
+  "built_at": "2026-10-30T10:10:14.868Z"
+ },
+ "artifacts": {
+  "A1": {
+   "artifact_id": "run-20261030101014-gbekjc-A1",
+   "artifact_type": "A1",
+   "schema_version": "1.0.0",
+   "title": "Knowledge Synthesis Matrix",
+   "metadata": {
+    "project_id": "proj_slr_artifacts_demo",
+    "run_id": "run-20261030101014-gbekjc",
+    "generated_at": "2026-10-30T10:10:14.868Z",
+    "corpus": {
+     "corpus_version": "slr-artifact-corpus-v2",
+     "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5"
+    },
+    "generator": {
+     "kind": "deterministic",
+     "name": "a1-knowledge-synthesis-matrix",
+     "version": "1.1.0"
+    },
+    "review_status": "approved",
+    "validation_status": "not_applicable",
+    "limitations": [
+     "Synthesized findings are the review team's synthesis themes; no synthesized finding is generated automatically.",
+     "Supporting findings are the extracted values each theme cites, read from the current consensus. Researcher notes and the snapshot stored when a value was cited are shown apart and never replace the current value."
+    ],
+    "related_artifacts": [
+     "run-20261030101014-gbekjc-A3",
+     "run-20261030101014-gbekjc-A4",
+     "run-20261030101014-gbekjc-A5",
+     "run-20261030101014-gbekjc-A10"
+    ],
+    "reviews": [
+     {
+      "artifact_type": "A1",
+      "decision": "APPROVED",
+      "note": "dev data check",
+      "reviewer_id": "leader_user",
+      "at": "2026-10-30T10:10:15.086Z"
+     }
+    ]
+   },
+   "rows": [
+    {
+     "row_id": "A1:efC0ir0a0hTezIGP1QyF",
+     "synthesis_group": {
+      "claim_id": "efC0ir0a0hTezIGP1QyF",
+      "title": "Theme for RQ1",
+      "research_question_id": "rq1"
+     },
+     "synthesized_finding": {
+      "text": "Development theme for the writing-module data check",
+      "origin": "researcher",
+      "claim_id": "efC0ir0a0hTezIGP1QyF"
+     },
+     "supporting_findings": [
+      {
+       "item_id": "fy1az8WRSYyXpgwrY6nq",
+       "study_id": "demo_paper_copilot_2022",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_copilot_2022:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_copilot_2022",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "Functional correctness varies strongly by language and by task difficulty.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_copilot_2022",
+        "paper_title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "Functional correctness varies strongly by language and by task difficulty.",
+        "string_value": "Functional correctness varies strongly by language and by task difficulty.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "NZK0WZV73PjKf75UdM9M",
+       "study_id": "demo_paper_repair_2024",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_repair_2024:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_repair_2024",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "Results on contaminated benchmarks may be overstated.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_repair_2024",
+        "paper_title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "Results on contaminated benchmarks may be overstated.",
+        "string_value": "Results on contaminated benchmarks may be overstated.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "lpO60YhDo9VGFEilZ2x7",
+       "study_id": "demo_paper_codex_2021",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_codex_2021:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_codex_2021",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "Repeated sampling from the model is a surprisingly effective strategy.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_codex_2021",
+        "paper_title": "Evaluating Large Language Models Trained on Code",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "Repeated sampling from the model is a surprisingly effective strategy.",
+        "string_value": "Repeated sampling from the model is a surprisingly effective strategy.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "FNP5YGJnKO4dOtk63vhZ",
+       "study_id": "demo_paper_security_2023",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_security_2023:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_security_2023",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_security_2023",
+        "paper_title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+        "string_value": "About 35% of the snippets contain security weaknesses across several CWE categories.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      }
+     ],
+     "not_reported_items": [],
+     "unresolved_items": [],
+     "outcomes": [],
+     "limitations": [],
+     "study_ids": [
+      "demo_paper_codex_2021",
+      "demo_paper_copilot_2022",
+      "demo_paper_repair_2024",
+      "demo_paper_security_2023"
+     ],
+     "citations": [
+      {
+       "study_id": "demo_paper_codex_2021",
+       "title": "Evaluating Large Language Models Trained on Code",
+       "authors": [
+        "Mark Chen",
+        "Jerry Tworek",
+        "Heewoo Jun"
+       ],
+       "year": 2021,
+       "doi": "10.48550/arXiv.2107.03374",
+       "venue": "arXiv preprint"
+      },
+      {
+       "study_id": "demo_paper_copilot_2022",
+       "title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+       "authors": [
+        "Alice Johnson",
+        "Bob Miller",
+        "Carol Danvers"
+       ],
+       "year": 2022,
+       "doi": "10.1145/3510003.3510050",
+       "venue": "ICSE 2022"
+      },
+      {
+       "study_id": "demo_paper_repair_2024",
+       "title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+       "authors": [
+        "Chunqiu Steven Xia",
+        "Yuxiang Wei",
+        "Lingming Zhang"
+       ],
+       "year": 2024,
+       "doi": "10.1109/ICSE48619.2023.00129",
+       "venue": "ICSE 2023"
+      },
+      {
+       "study_id": "demo_paper_security_2023",
+       "title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+       "authors": [
+        "Yujia Fu",
+        "Peng Liang",
+        "Amjed Tahir"
+       ],
+       "year": 2023,
+       "doi": "10.1145/3643674",
+       "venue": "ACM Transactions on Software Engineering and Methodology"
+      }
+     ]
+    },
+    {
+     "row_id": "A1:TpaVaqqDCt0sbQDqQ20d",
+     "synthesis_group": {
+      "claim_id": "TpaVaqqDCt0sbQDqQ20d",
+      "title": "Theme for RQ3",
+      "research_question_id": "rq3"
+     },
+     "synthesized_finding": {
+      "text": "Development theme for the writing-module data check",
+      "origin": "researcher",
+      "claim_id": "TpaVaqqDCt0sbQDqQ20d"
+     },
+     "supporting_findings": [
+      {
+       "item_id": "eOuR6kzcqmPRFw1CBg6N",
+       "study_id": "demo_paper_codex_2021",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_codex_2021:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_codex_2021",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_codex_2021",
+        "paper_title": "Evaluating Large Language Models Trained on Code",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+        "string_value": "A fine-tuned version solves 28.8% of problems on HumanEval, whereas GPT-3 solves 0%.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "fjgPWJ2FIGGOPCGCo4n9",
+       "study_id": "demo_paper_security_2023",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_security_2023:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_security_2023",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "Developers rarely review generated code for vulnerabilities.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_security_2023",
+        "paper_title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "Developers rarely review generated code for vulnerabilities.",
+        "string_value": "Developers rarely review generated code for vulnerabilities.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "AKxeaTIxwNmth6RjVabq",
+       "study_id": "demo_paper_swebench_2024",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_swebench_2024:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_swebench_2024",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "The best evaluated model resolves only 1.96% of the issues.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_swebench_2024",
+        "paper_title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "The best evaluated model resolves only 1.96% of the issues.",
+        "string_value": "The best evaluated model resolves only 1.96% of the issues.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "YmBVRZ1exPRdBPESNdPD",
+       "study_id": "demo_paper_productivity_2023",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_productivity_2023:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_productivity_2023",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_productivity_2023",
+        "paper_title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+        "string_value": "In a controlled experiment, developers with access to Copilot completed an HTTP server task 55.8% faster than the control group.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      }
+     ],
+     "not_reported_items": [],
+     "unresolved_items": [],
+     "outcomes": [],
+     "limitations": [],
+     "study_ids": [
+      "demo_paper_codex_2021",
+      "demo_paper_productivity_2023",
+      "demo_paper_security_2023",
+      "demo_paper_swebench_2024"
+     ],
+     "citations": [
+      {
+       "study_id": "demo_paper_codex_2021",
+       "title": "Evaluating Large Language Models Trained on Code",
+       "authors": [
+        "Mark Chen",
+        "Jerry Tworek",
+        "Heewoo Jun"
+       ],
+       "year": 2021,
+       "doi": "10.48550/arXiv.2107.03374",
+       "venue": "arXiv preprint"
+      },
+      {
+       "study_id": "demo_paper_productivity_2023",
+       "title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+       "authors": [
+        "Sida Peng",
+        "Eirini Kalliamvakou",
+        "Peter Cihon"
+       ],
+       "year": 2023,
+       "doi": "10.48550/arXiv.2302.06590",
+       "venue": "arXiv preprint"
+      },
+      {
+       "study_id": "demo_paper_security_2023",
+       "title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+       "authors": [
+        "Yujia Fu",
+        "Peng Liang",
+        "Amjed Tahir"
+       ],
+       "year": 2023,
+       "doi": "10.1145/3643674",
+       "venue": "ACM Transactions on Software Engineering and Methodology"
+      },
+      {
+       "study_id": "demo_paper_swebench_2024",
+       "title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+       "authors": [
+        "Carlos Jimenez",
+        "John Yang",
+        "Alexander Wettig"
+       ],
+       "year": 2024,
+       "doi": "10.48550/arXiv.2310.06770",
+       "venue": "ICLR 2024"
+      }
+     ]
+    },
+    {
+     "row_id": "A1:wlawHgiD8ZACCRxeNGFX",
+     "synthesis_group": {
+      "claim_id": "wlawHgiD8ZACCRxeNGFX",
+      "title": "Theme for RQ2",
+      "research_question_id": "rq2"
+     },
+     "synthesized_finding": {
+      "text": "Development theme for the writing-module data check",
+      "origin": "researcher",
+      "claim_id": "wlawHgiD8ZACCRxeNGFX"
+     },
+     "supporting_findings": [
+      {
+       "item_id": "7cRefyaczdQ53mIC9pvx",
+       "study_id": "demo_paper_swebench_2024",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_swebench_2024:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_swebench_2024",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_swebench_2024",
+        "paper_title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+        "string_value": "We introduce SWE-bench, a benchmark of 2,294 real GitHub issues.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "E4vkI0Z88XHu7pl94OxI",
+       "study_id": "demo_paper_productivity_2023",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_productivity_2023:fld_title_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_productivity_2023",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "role": null,
+        "text": "We did not measure long-term code quality in this experiment.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_productivity_2023",
+        "paper_title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+        "field_id": "fld_title_proj_slr_artifacts_demo",
+        "field_name": "Tiêu đề nghiên cứu",
+        "display_value": "We did not measure long-term code quality in this experiment.",
+        "string_value": "We did not measure long-term code quality in this experiment.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "x4GENPd9iLVKHJaN125n",
+       "study_id": "demo_paper_copilot_2022",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_copilot_2022:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_copilot_2022",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "GitHub Copilot is an AI pair programmer.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_copilot_2022",
+        "paper_title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "GitHub Copilot is an AI pair programmer.",
+        "string_value": "GitHub Copilot is an AI pair programmer.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      },
+      {
+       "item_id": "I96SElEQPkq1NVIjU5gB",
+       "study_id": "demo_paper_repair_2024",
+       "cited_finding": {
+        "finding_id": "F:demo_paper_repair_2024:fld_authors_proj_slr_artifacts_demo",
+        "study_id": "demo_paper_repair_2024",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "role": null,
+        "text": "We study how large language models perform on automated program repair across several benchmarks.",
+        "is_not_reported": false,
+        "evidence_ids": []
+       },
+       "value_drift": "unchanged",
+       "notes": null,
+       "cited_snapshot": {
+        "paper_id": "demo_paper_repair_2024",
+        "paper_title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+        "field_id": "fld_authors_proj_slr_artifacts_demo",
+        "field_name": "Tác giả",
+        "display_value": "We study how large language models perform on automated program repair across several benchmarks.",
+        "string_value": "We study how large language models perform on automated program repair across several benchmarks.",
+        "numeric_value": null,
+        "boolean_value": null,
+        "option_id": null
+       },
+       "related_findings": []
+      }
+     ],
+     "not_reported_items": [],
+     "unresolved_items": [],
+     "outcomes": [],
+     "limitations": [],
+     "study_ids": [
+      "demo_paper_copilot_2022",
+      "demo_paper_productivity_2023",
+      "demo_paper_repair_2024",
+      "demo_paper_swebench_2024"
+     ],
+     "citations": [
+      {
+       "study_id": "demo_paper_copilot_2022",
+       "title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+       "authors": [
+        "Alice Johnson",
+        "Bob Miller",
+        "Carol Danvers"
+       ],
+       "year": 2022,
+       "doi": "10.1145/3510003.3510050",
+       "venue": "ICSE 2022"
+      },
+      {
+       "study_id": "demo_paper_productivity_2023",
+       "title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+       "authors": [
+        "Sida Peng",
+        "Eirini Kalliamvakou",
+        "Peter Cihon"
+       ],
+       "year": 2023,
+       "doi": "10.48550/arXiv.2302.06590",
+       "venue": "arXiv preprint"
+      },
+      {
+       "study_id": "demo_paper_repair_2024",
+       "title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+       "authors": [
+        "Chunqiu Steven Xia",
+        "Yuxiang Wei",
+        "Lingming Zhang"
+       ],
+       "year": 2024,
+       "doi": "10.1109/ICSE48619.2023.00129",
+       "venue": "ICSE 2023"
+      },
+      {
+       "study_id": "demo_paper_swebench_2024",
+       "title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+       "authors": [
+        "Carlos Jimenez",
+        "John Yang",
+        "Alexander Wettig"
+       ],
+       "year": 2024,
+       "doi": "10.48550/arXiv.2310.06770",
+       "venue": "ICLR 2024"
+      }
+     ]
+    }
+   ],
+   "unsynthesized_findings": []
+  },
+  "A2": {
+   "artifact_id": "run-20261030101014-gbekjc-A2",
+   "artifact_type": "A2",
+   "schema_version": "1.0.0",
+   "title": "Research Landscape & Taxonomy",
+   "metadata": {
+    "project_id": "proj_slr_artifacts_demo",
+    "run_id": "run-20261030101014-gbekjc",
+    "generated_at": "2026-10-30T10:10:14.868Z",
+    "corpus": {
+     "corpus_version": "slr-artifact-corpus-v2",
+     "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5"
+    },
+    "generator": {
+     "kind": "deterministic",
+     "name": "a2-research-landscape",
+     "version": "1.1.0"
+    },
+    "review_status": "approved",
+    "validation_status": "not_applicable",
+    "limitations": [
+     "Bibliographic distributions (year, venue, keyword) cover every included study; classification dimensions cover studies with completed extraction.",
+     "Free-text values are grouped by exact normalized text, so synonyms appear as separate categories.",
+     "No select field or field mapped to study_design/topic exists, so the taxonomy has no dimensions."
+    ],
+    "related_artifacts": [
+     "run-20261030101014-gbekjc-A8",
+     "run-20261030101014-gbekjc-A10"
+    ],
+    "reviews": [
+     {
+      "artifact_type": "A2",
+      "decision": "APPROVED",
+      "note": "dev data check",
+      "reviewer_id": "leader_user",
+      "at": "2026-10-30T10:10:15.144Z"
+     }
+    ]
+   },
+   "total_included_studies": 6,
+   "synthesized_study_ids": [
+    "demo_paper_codex_2021",
+    "demo_paper_copilot_2022",
+    "demo_paper_productivity_2023",
+    "demo_paper_repair_2024",
+    "demo_paper_security_2023",
+    "demo_paper_swebench_2024"
+   ],
+   "dimensions": [],
+   "taxonomy": {
+    "node_id": "T:root",
+    "label": "Demo: LLM-assisted Software Engineering (SLR artifacts)",
+    "level": "root",
+    "study_count": 6,
+    "study_ids": [
+     "demo_paper_codex_2021",
+     "demo_paper_copilot_2022",
+     "demo_paper_productivity_2023",
+     "demo_paper_repair_2024",
+     "demo_paper_security_2023",
+     "demo_paper_swebench_2024"
+    ],
+    "children": []
+   },
+   "distributions": {
+    "by_year": [
+     {
+      "key": "year:2021",
+      "label": "2021",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_codex_2021"
+      ]
+     },
+     {
+      "key": "year:2022",
+      "label": "2022",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_copilot_2022"
+      ]
+     },
+     {
+      "key": "year:2023",
+      "label": "2023",
+      "study_count": 2,
+      "study_ids": [
+       "demo_paper_productivity_2023",
+       "demo_paper_security_2023"
+      ]
+     },
+     {
+      "key": "year:2024",
+      "label": "2024",
+      "study_count": 2,
+      "study_ids": [
+       "demo_paper_repair_2024",
+       "demo_paper_swebench_2024"
+      ]
+     }
+    ],
+    "by_venue": [
+     {
+      "key": "venue:acm transactions on software engineering and methodology",
+      "label": "ACM Transactions on Software Engineering and Methodology",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_security_2023"
+      ]
+     },
+     {
+      "key": "venue:arxiv preprint",
+      "label": "arXiv preprint",
+      "study_count": 2,
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_productivity_2023"
+      ]
+     },
+     {
+      "key": "venue:iclr 2024",
+      "label": "ICLR 2024",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_swebench_2024"
+      ]
+     },
+     {
+      "key": "venue:icse 2022",
+      "label": "ICSE 2022",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_copilot_2022"
+      ]
+     },
+     {
+      "key": "venue:icse 2023",
+      "label": "ICSE 2023",
+      "study_count": 1,
+      "study_ids": [
+       "demo_paper_repair_2024"
+      ]
+     }
+    ],
+    "by_keyword": [],
+    "by_context": [],
+    "by_research_question": [
+     {
+      "key": "rq:rq1",
+      "label": "RQ1",
+      "study_count": 4,
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_copilot_2022",
+       "demo_paper_repair_2024",
+       "demo_paper_security_2023"
+      ]
+     },
+     {
+      "key": "rq:rq2",
+      "label": "RQ2",
+      "study_count": 4,
+      "study_ids": [
+       "demo_paper_copilot_2022",
+       "demo_paper_productivity_2023",
+       "demo_paper_repair_2024",
+       "demo_paper_swebench_2024"
+      ]
+     },
+     {
+      "key": "rq:rq3",
+      "label": "RQ3",
+      "study_count": 4,
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_productivity_2023",
+       "demo_paper_security_2023",
+       "demo_paper_swebench_2024"
+      ]
+     }
+    ]
+   }
+  },
+  "A7": {
+   "artifact_id": "run-20261030101014-gbekjc-A7",
+   "artifact_type": "A7",
+   "schema_version": "1.0.0",
+   "title": "Contradiction & Uncertainty Register",
+   "metadata": {
+    "project_id": "proj_slr_artifacts_demo",
+    "run_id": "run-20261030101014-gbekjc",
+    "generated_at": "2026-10-30T10:10:14.868Z",
+    "corpus": {
+     "corpus_version": "slr-artifact-corpus-v2",
+     "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5"
+    },
+    "generator": {
+     "kind": "deterministic",
+     "name": "a7-contradiction-uncertainty-register",
+     "version": "1.1.0"
+    },
+    "review_status": "approved",
+    "validation_status": "not_applicable",
+    "limitations": [
+     "Different results are registered as candidate contradictions only; a researcher must confirm that the studies are comparable before calling them contradictory.",
+     "No extraction field is mapped to effect_direction, so divergent results cannot be detected from the data."
+    ],
+    "related_artifacts": [
+     "run-20261030101014-gbekjc-A3",
+     "run-20261030101014-gbekjc-A4",
+     "run-20261030101014-gbekjc-A6",
+     "run-20261030101014-gbekjc-A9"
+    ],
+    "reviews": [
+     {
+      "artifact_type": "A7",
+      "decision": "APPROVED",
+      "note": "dev data check",
+      "reviewer_id": "leader_user",
+      "at": "2026-10-30T10:10:15.222Z"
+     }
+    ]
+   },
+   "entries": [
+    {
+     "entry_id": "U1",
+     "register_type": "uncertainty",
+     "category": "evidence_quality",
+     "status": "open",
+     "description": "The claim \"Theme for RQ1\" relies on 4 study(ies) rated low quality or not yet resolved in A4.",
+     "positions": [
+      {
+       "study_id": "demo_paper_codex_2021",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_copilot_2022",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_repair_2024",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_security_2023",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      }
+     ],
+     "possible_explanations": [],
+     "sources": {
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_copilot_2022",
+       "demo_paper_repair_2024",
+       "demo_paper_security_2023"
+      ],
+      "finding_ids": [],
+      "claim_ids": [
+       "efC0ir0a0hTezIGP1QyF"
+      ],
+      "a3_node_ids": []
+     }
+    },
+    {
+     "entry_id": "U2",
+     "register_type": "uncertainty",
+     "category": "evidence_quality",
+     "status": "open",
+     "description": "The claim \"Theme for RQ3\" relies on 4 study(ies) rated low quality or not yet resolved in A4.",
+     "positions": [
+      {
+       "study_id": "demo_paper_codex_2021",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_productivity_2023",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_security_2023",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_swebench_2024",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      }
+     ],
+     "possible_explanations": [],
+     "sources": {
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_productivity_2023",
+       "demo_paper_security_2023",
+       "demo_paper_swebench_2024"
+      ],
+      "finding_ids": [],
+      "claim_ids": [
+       "TpaVaqqDCt0sbQDqQ20d"
+      ],
+      "a3_node_ids": []
+     }
+    },
+    {
+     "entry_id": "U3",
+     "register_type": "uncertainty",
+     "category": "evidence_quality",
+     "status": "open",
+     "description": "The claim \"Theme for RQ2\" relies on 4 study(ies) rated low quality or not yet resolved in A4.",
+     "positions": [
+      {
+       "study_id": "demo_paper_copilot_2022",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_productivity_2023",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_repair_2024",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      },
+      {
+       "study_id": "demo_paper_swebench_2024",
+       "finding_ids": [],
+       "value": "Quality not resolved"
+      }
+     ],
+     "possible_explanations": [],
+     "sources": {
+      "study_ids": [
+       "demo_paper_copilot_2022",
+       "demo_paper_productivity_2023",
+       "demo_paper_repair_2024",
+       "demo_paper_swebench_2024"
+      ],
+      "finding_ids": [],
+      "claim_ids": [
+       "wlawHgiD8ZACCRxeNGFX"
+      ],
+      "a3_node_ids": []
+     }
+    }
+   ],
+   "summary": {
+    "contradictions": 0,
+    "uncertainties": 3
+   }
+  },
+  "A10": {
+   "artifact_id": "run-20261030101014-gbekjc-A10",
+   "artifact_type": "A10",
+   "schema_version": "1.0.0",
+   "title": "Traceability & Reproducibility Package",
+   "metadata": {
+    "project_id": "proj_slr_artifacts_demo",
+    "run_id": "run-20261030101014-gbekjc",
+    "generated_at": "2026-10-30T10:10:14.868Z",
+    "corpus": {
+     "corpus_version": "slr-artifact-corpus-v2",
+     "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5"
+    },
+    "generator": {
+     "kind": "deterministic",
+     "name": "a10-traceability-package",
+     "version": "1.1.0"
+    },
+    "review_status": "approved",
+    "validation_status": "not_applicable",
+    "limitations": [
+     "Search sources, selection criteria and the PRISMA report are copied as stored; A10 does not check them.",
+     "The manifest hashes A1-A9; A10 cannot contain its own hash."
+    ],
+    "related_artifacts": [
+     "run-20261030101014-gbekjc-A1",
+     "run-20261030101014-gbekjc-A2",
+     "run-20261030101014-gbekjc-A3",
+     "run-20261030101014-gbekjc-A4",
+     "run-20261030101014-gbekjc-A5",
+     "run-20261030101014-gbekjc-A6",
+     "run-20261030101014-gbekjc-A7",
+     "run-20261030101014-gbekjc-A8",
+     "run-20261030101014-gbekjc-A9"
+    ],
+    "reviews": [
+     {
+      "artifact_type": "A10",
+      "decision": "APPROVED",
+      "note": "dev data check",
+      "reviewer_id": "leader_user",
+      "at": "2026-10-30T10:10:15.299Z"
+     }
+    ]
+   },
+   "protocol": {
+    "research_questions": [
+     {
+      "rq_id": "rq1",
+      "code": "RQ1",
+      "question": "Which LLM-based tools are evaluated for code generation and program repair?"
+     },
+     {
+      "rq_id": "rq2",
+      "code": "RQ2",
+      "question": "How correct and how secure is the code that LLM assistants produce?"
+     },
+     {
+      "rq_id": "rq3",
+      "code": "RQ3",
+      "question": "What is the measured effect of AI assistants on developer productivity?"
+     }
+    ],
+    "picoc": {
+     "population": [
+      "Software developers",
+      "Open-source projects"
+     ],
+     "intervention": [
+      "LLM code assistants",
+      "GitHub Copilot",
+      "Codex"
+     ],
+     "comparison": [
+      "Manual coding",
+      "Traditional repair tools"
+     ],
+     "outcome": [
+      "Functional correctness",
+      "Security weaknesses",
+      "Task completion time"
+     ],
+     "context": [
+      "Benchmarks and industrial settings, 2021-2024"
+     ]
+    },
+    "inclusion_criteria": [
+     {
+      "id": "ic1",
+      "code": "IC1",
+      "description": "Empirically evaluates LLM-based code generation, repair or developer productivity."
+     }
+    ],
+    "exclusion_criteria": [
+     {
+      "id": "ec1",
+      "code": "EC1",
+      "description": "Position papers or abstracts without an empirical evaluation."
+     }
+    ],
+    "updated_at": "2026-10-30T10:08:12.062Z"
+   },
+   "search_strategy": {
+    "sources": []
+   },
+   "selection": {
+    "criteria_groups": [],
+    "prisma": null
+   },
+   "selected_studies": [
+    {
+     "study_id": "demo_paper_codex_2021",
+     "citation": {
+      "study_id": "demo_paper_codex_2021",
+      "title": "Evaluating Large Language Models Trained on Code",
+      "authors": [
+       "Mark Chen",
+       "Jerry Tworek",
+       "Heewoo Jun"
+      ],
+      "year": 2021,
+      "doi": "10.48550/arXiv.2107.03374",
+      "venue": "arXiv preprint"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    },
+    {
+     "study_id": "demo_paper_copilot_2022",
+     "citation": {
+      "study_id": "demo_paper_copilot_2022",
+      "title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+      "authors": [
+       "Alice Johnson",
+       "Bob Miller",
+       "Carol Danvers"
+      ],
+      "year": 2022,
+      "doi": "10.1145/3510003.3510050",
+      "venue": "ICSE 2022"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    },
+    {
+     "study_id": "demo_paper_productivity_2023",
+     "citation": {
+      "study_id": "demo_paper_productivity_2023",
+      "title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+      "authors": [
+       "Sida Peng",
+       "Eirini Kalliamvakou",
+       "Peter Cihon"
+      ],
+      "year": 2023,
+      "doi": "10.48550/arXiv.2302.06590",
+      "venue": "arXiv preprint"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    },
+    {
+     "study_id": "demo_paper_repair_2024",
+     "citation": {
+      "study_id": "demo_paper_repair_2024",
+      "title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+      "authors": [
+       "Chunqiu Steven Xia",
+       "Yuxiang Wei",
+       "Lingming Zhang"
+      ],
+      "year": 2024,
+      "doi": "10.1109/ICSE48619.2023.00129",
+      "venue": "ICSE 2023"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    },
+    {
+     "study_id": "demo_paper_security_2023",
+     "citation": {
+      "study_id": "demo_paper_security_2023",
+      "title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+      "authors": [
+       "Yujia Fu",
+       "Peng Liang",
+       "Amjed Tahir"
+      ],
+      "year": 2023,
+      "doi": "10.1145/3643674",
+      "venue": "ACM Transactions on Software Engineering and Methodology"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    },
+    {
+     "study_id": "demo_paper_swebench_2024",
+     "citation": {
+      "study_id": "demo_paper_swebench_2024",
+      "title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+      "authors": [
+       "Carlos Jimenez",
+       "John Yang",
+       "Alexander Wettig"
+      ],
+      "year": 2024,
+      "doi": "10.48550/arXiv.2310.06770",
+      "venue": "ICLR 2024"
+     },
+     "extraction": {
+      "status": "COMPLETED",
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "consensus_version": 1,
+      "completed_at": "2026-10-30T10:08:22.146Z"
+     },
+     "quality_status": "NOT_ASSESSED"
+    }
+   ],
+   "extraction_data": {
+    "corpus_version": "slr-artifact-corpus-v2",
+    "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5",
+    "templates": [
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "study_ids": [
+       "demo_paper_codex_2021",
+       "demo_paper_copilot_2022",
+       "demo_paper_productivity_2023",
+       "demo_paper_repair_2024",
+       "demo_paper_security_2023",
+       "demo_paper_swebench_2024"
+      ]
+     }
+    ],
+    "field_roles": [
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "field_id": "fld_title_proj_slr_artifacts_demo",
+      "field_name": "Tiêu đề nghiên cứu",
+      "section_name": "Thông tin nghiên cứu",
+      "field_type": 0,
+      "role": null,
+      "source": "unmapped",
+      "options": []
+     },
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "field_id": "fld_authors_proj_slr_artifacts_demo",
+      "field_name": "Tác giả",
+      "section_name": "Thông tin nghiên cứu",
+      "field_type": 0,
+      "role": null,
+      "source": "unmapped",
+      "options": []
+     },
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "field_id": "fld_year_proj_slr_artifacts_demo",
+      "field_name": "Năm xuất bản",
+      "section_name": "Thông tin nghiên cứu",
+      "field_type": 1,
+      "role": null,
+      "source": "unmapped",
+      "options": []
+     },
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "field_id": "fld_summary_proj_slr_artifacts_demo",
+      "field_name": "Phát hiện chính",
+      "section_name": "Kết quả chính",
+      "field_type": 0,
+      "role": null,
+      "source": "unmapped",
+      "options": []
+     },
+     {
+      "template_id": "tpl_proj_slr_artifacts_demo",
+      "template_version": 1,
+      "field_id": "fld_conclusions_proj_slr_artifacts_demo",
+      "field_name": "Kết luận",
+      "section_name": "Kết quả chính",
+      "field_type": 0,
+      "role": null,
+      "source": "unmapped",
+      "options": []
+     }
+    ],
+    "finding_count": 30,
+    "evidence_count": 0,
+    "verified_evidence_count": 0,
+    "corpus_issues": []
+   },
+   "synthesis_rules": [
+    {
+     "rule_id": "corpus.consensus_only",
+     "artifact_type": "A10",
+     "description": "Only completed extraction consensus values enter the corpus; reviewer drafts never become findings."
+    },
+    {
+     "rule_id": "corpus.evidence",
+     "artifact_type": "A10",
+     "description": "Evidence quotes and locations are copied from reviewer extraction records; quote_hash_verified marks quotes whose SHA-256 matches their stored hash."
+    },
+    {
+     "rule_id": "corpus.field_roles",
+     "artifact_type": "A10",
+     "description": "Field roles: explicit mapping, then built-in preset keys, then PICOC section names, then field-name heuristics. Every binding records its source.",
+     "parameters": {
+      "explicit_field_roles": {}
+     }
+    },
+    {
+     "rule_id": "corpus.theme_evidence_link",
+     "artifact_type": "A10",
+     "description": "Theme evidence is read from synthesisThemes/{themeId}/evidence. Its extractedDataValueId is matched against the ids buildSourceValueId gives every (study, field) pair of the corpus, never split. Statuses: resolved, resolved_not_reported (kept, never support), unresolved (with a reason). Duplicates within a theme keep the earliest citation. The cited snapshot is kept for audit and never used as the current value; value_drift compares it with the current value on typed fields. Evidence embedded in theme documents is ignored."
+    },
+    {
+     "rule_id": "A1.theme_rows",
+     "artifact_type": "A1",
+     "description": "One row per researcher synthesis theme; supporting findings are the resolved values the theme cites. Citations of unreported values and unresolved citations are listed apart."
+    },
+    {
+     "rule_id": "A2.dimensions",
+     "artifact_type": "A2",
+     "description": "Every select field, and fields mapped to study_design or topic, is a classification dimension."
+    },
+    {
+     "rule_id": "A3.generation",
+     "artifact_type": "A3",
+     "description": "Reported findings become finding I-nodes; each researcher theme becomes an RA from the reported values it cites to the theme claim. A cited reported finding is the same node as that finding (same finding_id). No CA or PA is generated.",
+     "parameters": {
+      "mode": "deterministic",
+      "research_question_id": null
+     }
+    },
+    {
+     "rule_id": "A3.validation",
+     "artifact_type": "A3",
+     "description": "Layer A JSON Schema and Layer B semantic validation run on every graph; an invalid graph is kept and marked invalid, never repaired.",
+     "parameters": {
+      "schema_id": "urn:researchpulse:slr-artifacts:a3-aif-profile:1"
+     }
+    },
+    {
+     "rule_id": "A4.no_certainty_rating",
+     "artifact_type": "A4",
+     "description": "Study quality comes from the QA phase; certainty per claim is never rated automatically."
+    },
+    {
+     "rule_id": "A5.grouping",
+     "artifact_type": "A5",
+     "description": "Studies are grouped by the normalized values of one role.",
+     "parameters": {
+      "group_by": "outcome"
+     }
+    },
+    {
+     "rule_id": "A6.co_reporting",
+     "artifact_type": "A6",
+     "description": "Mechanism and moderator relationships are co-occurrences within one study."
+    },
+    {
+     "rule_id": "A7.candidate_contradiction",
+     "artifact_type": "A7",
+     "description": "Studies with the same outcome value and different effect_direction values form an unverified candidate contradiction."
+    },
+    {
+     "rule_id": "A8.axes",
+     "artifact_type": "A8",
+     "description": "Cells count studies classified under both categories; empty = 0, sparse = 1..threshold.",
+     "parameters": {
+      "rows": null,
+      "columns": null,
+      "sparse_threshold": 1
+     }
+    },
+    {
+     "rule_id": "A9.priority",
+     "artifact_type": "A9",
+     "description": "High: unverified contradictions and empty cells between categories with at least 2 studies each. Medium: other empty cells, single-study claims, claims without high-quality support, sparse cells without high-quality studies. Low: other sparse cells."
+    }
+   ],
+   "versions": {
+    "artifact_schema_version": "1.0.0",
+    "a3_schema_id": "urn:researchpulse:slr-artifacts:a3-aif-profile:1",
+    "generator_version": "1.1.0",
+    "corpus_version": "slr-artifact-corpus-v2"
+   },
+   "artifact_manifest": [
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A1",
+     "artifact_type": "A1",
+     "schema_version": "1.0.0",
+     "content_hash": "cf48e514dd6a36900d4797e7aecf02c68dd03a687182b0f3caef57548051d4cb",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A2",
+     "artifact_type": "A2",
+     "schema_version": "1.0.0",
+     "content_hash": "dc1c8b08e311824e8413031c0f2ed9e610db1f79a769824dc09af5d20536ece7",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A3",
+     "artifact_type": "A3",
+     "schema_version": "1.0.0",
+     "content_hash": "87637dd90cf62d18ca98c595e67d1530262dd185ab9fc5781bb26dea4d95f827",
+     "review_status": "needs_human_review",
+     "validation_status": "valid"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A4",
+     "artifact_type": "A4",
+     "schema_version": "1.0.0",
+     "content_hash": "7f970572c1c31297eb39fb08b65a47958c06f3bfeda5f965349e3848d5504479",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A5",
+     "artifact_type": "A5",
+     "schema_version": "1.0.0",
+     "content_hash": "fa2790e598b4cfd2b45434a0f29bbebbe86c3b742a58bd08564d677c39183b12",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A6",
+     "artifact_type": "A6",
+     "schema_version": "1.0.0",
+     "content_hash": "aa124ee1cca19af8c489cccaf3f282bd9f5d0bf858b327700a02c3aa8e5f0094",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A7",
+     "artifact_type": "A7",
+     "schema_version": "1.0.0",
+     "content_hash": "a505ab9fda359e367860651ad6c6d28721e9bdfb34315df3ef32bf6c99638a60",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A8",
+     "artifact_type": "A8",
+     "schema_version": "1.0.0",
+     "content_hash": "c780eb202bf220dbf8e136c52f72913aedac595149d4e5d2d7ae2d1e1ee59fa0",
+     "review_status": "unreviewed",
+     "validation_status": "not_applicable"
+    },
+    {
+     "artifact_id": "run-20261030101014-gbekjc-A9",
+     "artifact_type": "A9",
+     "schema_version": "1.0.0",
+     "content_hash": "b002f21217380f3c49de317b9bbd56c7679396f888657340af68bcbec376c098",
+     "review_status": "needs_human_review",
+     "validation_status": "not_applicable"
+    }
+   ],
+   "decision_log": [
+    {
+     "at": "2026-10-30T10:09:09.457Z",
+     "actor_id": "leader_user",
+     "kind": "artifact_review",
+     "ref": "run-20261030100856-jtmrpq/A1",
+     "detail": "APPROVED: dev data check"
+    },
+    {
+     "at": "2026-10-30T10:09:09.548Z",
+     "actor_id": "leader_user",
+     "kind": "artifact_review",
+     "ref": "run-20261030100856-jtmrpq/A10",
+     "detail": "APPROVED: dev data check"
+    },
+    {
+     "at": "2026-10-30T10:09:09.636Z",
+     "actor_id": "leader_user",
+     "kind": "artifact_review",
+     "ref": "run-20261030100856-jtmrpq/A2",
+     "detail": "APPROVED: dev data check"
+    },
+    {
+     "at": "2026-10-30T10:09:09.732Z",
+     "actor_id": "leader_user",
+     "kind": "artifact_review",
+     "ref": "run-20261030100856-jtmrpq/A7",
+     "detail": "APPROVED: dev data check"
+    }
+   ],
+   "change_log": [
+    {
+     "run_id": "run-20261030100856-jtmrpq",
+     "generated_at": "2026-10-30T10:08:56.634Z",
+     "generated_by": "leader_user",
+     "corpus_hash": "fb0f9a1f2f55d6d71a1bfd6c85e4c97b42430ccbf209901d5333a026f3daba62",
+     "artifact_ids": [
+      "run-20261030100856-jtmrpq-A1",
+      "run-20261030100856-jtmrpq-A2",
+      "run-20261030100856-jtmrpq-A3",
+      "run-20261030100856-jtmrpq-A4",
+      "run-20261030100856-jtmrpq-A5",
+      "run-20261030100856-jtmrpq-A6",
+      "run-20261030100856-jtmrpq-A7",
+      "run-20261030100856-jtmrpq-A8",
+      "run-20261030100856-jtmrpq-A9",
+      "run-20261030100856-jtmrpq-A10"
+     ]
+    },
+    {
+     "run_id": "run-20261030101014-gbekjc",
+     "generated_at": "2026-10-30T10:10:14.868Z",
+     "generated_by": "leader_user",
+     "corpus_hash": "8ebd75edc93dc134180bbf98543a88d5aa973af0d1f611fecd123969bff1f0f5",
+     "artifact_ids": [
+      "run-20261030101014-gbekjc-A1",
+      "run-20261030101014-gbekjc-A2",
+      "run-20261030101014-gbekjc-A3",
+      "run-20261030101014-gbekjc-A4",
+      "run-20261030101014-gbekjc-A5",
+      "run-20261030101014-gbekjc-A6",
+      "run-20261030101014-gbekjc-A7",
+      "run-20261030101014-gbekjc-A8",
+      "run-20261030101014-gbekjc-A9",
+      "run-20261030101014-gbekjc-A10"
+     ]
+    }
+   ]
+  }
+ },
+ "supplements": {
+  "prisma_writing_export": {
+   "schemaVersion": "slr-prisma-writing-v1",
+   "reviewType": "NEW_REVIEW",
+   "generatedAt": "2026-10-30T10:13:26.209Z",
+   "project": {
+    "id": "proj_slr_artifacts_demo",
+    "title": "Demo: LLM-assisted Software Engineering (SLR artifacts)",
+    "description": "Demo project for trying the SLR artifacts A1-A10.",
+    "domain": "Software Engineering"
+   },
+   "flow": {
+    "recordsIdentified": {
+     "databasesAndRegisters": 0,
+     "otherMethods": 0,
+     "unclassified": 6
+    },
+    "recordsRemovedBeforeScreening": {
+     "duplicates": 0,
+     "automation": null,
+     "otherReasons": 0
+    },
+    "recordsScreened": 6,
+    "recordsExcluded": 0,
+    "reportsSoughtForRetrieval": 6,
+    "reportsNotRetrieved": 0,
+    "reportsAssessedForEligibility": 6,
+    "reportsExcluded": [],
+    "studiesIncluded": 6,
+    "reportsOfIncludedStudies": null
+   },
+   "includedStudies": [
+    {
+     "id": "demo_paper_codex_2021",
+     "title": "Evaluating Large Language Models Trained on Code",
+     "authors": [
+      "Mark Chen",
+      "Jerry Tworek",
+      "Heewoo Jun"
+     ],
+     "year": 2021,
+     "journal": "arXiv preprint",
+     "doi": "10.48550/arXiv.2107.03374",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    },
+    {
+     "id": "demo_paper_copilot_2022",
+     "title": "An Empirical Evaluation of GitHub Copilot on Code Completion Tasks",
+     "authors": [
+      "Alice Johnson",
+      "Bob Miller",
+      "Carol Danvers"
+     ],
+     "year": 2022,
+     "journal": "ICSE 2022",
+     "doi": "10.1145/3510003.3510050",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    },
+    {
+     "id": "demo_paper_productivity_2023",
+     "title": "The Impact of AI on Developer Productivity: Evidence from GitHub Copilot",
+     "authors": [
+      "Sida Peng",
+      "Eirini Kalliamvakou",
+      "Peter Cihon"
+     ],
+     "year": 2023,
+     "journal": "arXiv preprint",
+     "doi": "10.48550/arXiv.2302.06590",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    },
+    {
+     "id": "demo_paper_repair_2024",
+     "title": "Automated Program Repair in the Era of Large Pre-trained Language Models",
+     "authors": [
+      "Chunqiu Steven Xia",
+      "Yuxiang Wei",
+      "Lingming Zhang"
+     ],
+     "year": 2024,
+     "journal": "ICSE 2023",
+     "doi": "10.1109/ICSE48619.2023.00129",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    },
+    {
+     "id": "demo_paper_security_2023",
+     "title": "Security Weaknesses of Copilot Generated Code in GitHub Projects",
+     "authors": [
+      "Yujia Fu",
+      "Peng Liang",
+      "Amjed Tahir"
+     ],
+     "year": 2023,
+     "journal": "ACM Transactions on Software Engineering and Methodology",
+     "doi": "10.1145/3643674",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    },
+    {
+     "id": "demo_paper_swebench_2024",
+     "title": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+     "authors": [
+      "Carlos Jimenez",
+      "John Yang",
+      "Alexander Wettig"
+     ],
+     "year": 2024,
+     "journal": "ICLR 2024",
+     "doi": "10.48550/arXiv.2310.06770",
+     "source": "Demo seed",
+     "importBatchId": null,
+     "sourceGroup": "UNCLASSIFIED",
+     "status": "INCLUDED",
+     "isDuplicate": false,
+     "screeningStage": "FULL_TEXT",
+     "exclusionReason": null
+    }
+   ],
+   "excludedReports": [],
+   "limitations": [
+    "Records without an explicit PRISMA source group are reported as unclassified and must be assigned to databases/registers or other methods before publication.",
+    "The project data model does not distinguish studies from reports; reportsOfIncludedStudies is therefore left blank.",
+    "Automation-tool removals are not recorded. Other pre-screening removals include skipped import records only."
+   ]
+  },
+  "rq_findings": []
+ }
+}
