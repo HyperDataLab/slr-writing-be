@@ -335,6 +335,13 @@ Tiền tố `/api`. Tài liệu tương tác: `/api-docs` (JSON ở `/api-docs.j
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/export/download` | Tải toàn bộ gói nộp bài PKZIP (`submission-package.zip`) | 200 (application/zip) |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/export/download-pdf` | Tải hoặc xem bài báo PDF định dạng IEEE 2 cột hoặc IMRaD 1 cột (`?format=ieee\|imrad&inline=0\|1`) | 200 (application/pdf) |
 | GET | `/projects/:projectId/snapshots/:snapshotId/manuscript/lineage` | Truy vết ngược từ câu nhận định về bằng chứng và anchor PDF nguồn | 200 |
+| GET | `/projects/:projectId/snapshots/:snapshotId/evidence` | Danh sách bằng chứng (Evidence Registry) của snapshot, kèm thống kê verified/unlinked và bộ lọc | 200; 401; 404 |
+| GET | `/projects/:projectId/snapshots/:snapshotId/evidence/:evidenceId` | Chi tiết một bằng chứng: quote, hash verification, source anchor, study, findings và claims | 200; 401; 404 `EVIDENCE_NOT_FOUND` |
+| GET | `/jobs` | Danh sách tác vụ nền (asynchronous background jobs) của người dùng | 200; 401 |
+| GET | `/jobs/:jobId` | Trạng thái, tiến độ và kết quả của một background job | 200; 401; 404 `JOB_NOT_FOUND` |
+| POST | `/jobs/:jobId/cancel` | Hủy một tác vụ nền đang chạy hoặc đang chờ | 200; 400 `JOB_NOT_CANCELLABLE`; 401; 404 `JOB_NOT_FOUND` |
+| GET | `/slr/projects` | Danh sách project SLR trên `slr-be` mà người dùng có quyền truy cập | 200; 401; 502 |
+| GET | `/slr/projects/:projectId/runs` | Danh sách run của project SLR trên `slr-be` | 200; 401; 404 `SLR_NOT_FOUND` |
 
 Mọi route cần xác thực. Project/snapshot của người khác luôn trả **404** (không 403, để không dò được ID).
 
