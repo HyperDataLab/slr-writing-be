@@ -5,11 +5,12 @@ import { guardIdParam } from '../../middleware/param-guard.middleware.js';
 import { createUserRateLimiter } from '../../middleware/rate-limit.middleware.js';
 import { BadRequestError, ForbiddenError } from '../../shared/errors/app-error.js';
 import blueprintRoutes from '../blueprint/blueprint.routes.js';
+import draftingRoutes from '../drafting/drafting.routes.js';
+import evidenceRoutes from '../evidence/evidence.routes.js';
+import exportRouter from '../export/export.routes.js';
 import methodsRoutes from '../methods/methods.routes.js';
 import paragraphPlanRoutes from '../paragraph-plans/paragraph-plan.routes.js';
-import draftingRoutes from '../drafting/drafting.routes.js';
 import { verificationRouter } from '../verification/verification.routes.js';
-import exportRouter from '../export/export.routes.js';
 import { getOwnedProject } from '../projects/projects.service.js';
 import { SlrClient, isValidRunId } from '../slr-client/slr-client.js';
 import { importSnapshot, validateImport } from './snapshot-import.service.js';
@@ -81,6 +82,9 @@ router.get('/:snapshotId', async (req: Request<Params>, res, next) => {
     return res.json({ success: true, data: await getSnapshot(req.params.projectId, req.params.snapshotId) });
   } catch (error) { return next(error); }
 });
+
+// Snapshot Evidence Registry
+router.use('/:snapshotId/evidence', evidenceRoutes);
 
 // Sections of the manuscript written from one snapshot.
 router.use('/:snapshotId/manuscript/methods', methodsRoutes);

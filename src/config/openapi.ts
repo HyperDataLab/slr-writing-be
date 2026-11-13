@@ -363,5 +363,83 @@ export const openApiDocument: OpenAPIV3.Document = {
         responses: { '200': { description: 'Snapshot' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
       },
     },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/evidence': {
+      get: {
+        tags: ['Evidence'], summary: 'List evidence items in the snapshot registry with stats and filters',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'search', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'verified', in: 'query', required: false, schema: { type: 'boolean' } },
+          { name: 'studyId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 50 } },
+        ],
+        responses: { '200': { description: 'Evidence registry list view with statistics' }, '401': { description: 'Not authenticated' }, '404': { description: 'PROJECT_NOT_FOUND or SNAPSHOT_NOT_FOUND' } },
+      },
+    },
+    '/api/projects/{projectId}/snapshots/{snapshotId}/evidence/{evidenceId}': {
+      get: {
+        tags: ['Evidence'], summary: 'Get details of a single evidence item with source anchor, study and claims',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'evidenceId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Evidence item detail' }, '401': { description: 'Not authenticated' }, '404': { description: 'EVIDENCE_NOT_FOUND' } },
+      },
+    },
+    '/api/jobs': {
+      get: {
+        tags: ['Jobs'], summary: 'List asynchronous background jobs for the authenticated user',
+        parameters: [
+          { name: 'status', in: 'query', required: false, schema: { type: 'string', enum: ['pending', 'running', 'completed', 'failed', 'cancelled'] } },
+          { name: 'type', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'projectId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'snapshotId', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 20 } },
+        ],
+        responses: { '200': { description: 'Paginated job records' }, '401': { description: 'Not authenticated' } },
+      },
+    },
+    '/api/jobs/{jobId}': {
+      get: {
+        tags: ['Jobs'], summary: 'Get status, progress, and result of a background job',
+        parameters: [
+          { name: 'jobId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Job record' }, '401': { description: 'Not authenticated' }, '404': { description: 'JOB_NOT_FOUND' } },
+      },
+    },
+    '/api/jobs/{jobId}/cancel': {
+      post: {
+        tags: ['Jobs'], summary: 'Cancel a pending or running background job',
+        parameters: [
+          { name: 'jobId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Cancelled job record' }, '400': { description: 'JOB_NOT_CANCELLABLE' }, '401': { description: 'Not authenticated' }, '404': { description: 'JOB_NOT_FOUND' } },
+      },
+    },
+    '/api/slr/projects': {
+      get: {
+        tags: ['SLR Discovery'], summary: 'List accessible SLR projects from upstream slr-be',
+        parameters: [
+          { name: 'search', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'pageNumber', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+          { name: 'pageSize', in: 'query', required: false, schema: { type: 'integer', default: 25 } },
+        ],
+        responses: { '200': { description: 'List of upstream SLR projects' }, '401': { description: 'Not authenticated' } },
+      },
+    },
+    '/api/slr/projects/{projectId}/runs': {
+      get: {
+        tags: ['SLR Discovery'], summary: 'List runs of an SLR project from upstream slr-be',
+        parameters: [
+          { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'List of upstream SLR runs' }, '401': { description: 'Not authenticated' }, '404': { description: 'SLR_NOT_FOUND' } },
+      },
+    },
   },
 };
